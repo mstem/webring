@@ -17,7 +17,7 @@ When a visitor clicks ← or →, they hit `/prev?from=<origin>` or `/next?from=
 ### Fly.io (recommended)
 
 ```bash
-git clone https://github.com/your-org/webring
+git clone https://github.com/mstem/webring
 cd webring
 npm install
 
