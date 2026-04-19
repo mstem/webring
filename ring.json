@@ -1,0 +1,14 @@
+{
+  "name": "Evens Foundation",
+  "description": "Vibe-coded projects in the Evens Foundation ecosystem",
+  "url": "https://webring.evensfoundation.org",
+  "join": {
+    "enabled": true,
+    "label": "Add your project"
+  },
+  "theme": {
+    "accent": "#818cf8",
+    "background": "rgba(10, 10, 20, 0.9)",
+    "text": "#ffffff"
+  }
+}
