@@ -1,7 +1,7 @@
 {
   "name": "Evens Foundation",
   "description": "Vibe-coded projects in the Evens Foundation ecosystem",
-  "url": "https://webring.evensfoundation.org",
+  "url": "https://webring.up.railway.app",
   "join": {
     "enabled": true,
     "label": "Add your project"
