@@ -20,11 +20,11 @@
       justify-content: center;
       gap: 0.55rem;
       padding: 0.45rem 1rem;
-      background: rgba(10, 10, 20, 0.88);
+      background: rgba(255, 255, 255, 0.9);
       backdrop-filter: blur(6px);
       -webkit-backdrop-filter: blur(6px);
-      border-top: 1px solid rgba(255,255,255,0.07);
-      color: rgba(255,255,255,0.55);
+      border-top: 1px solid rgba(15, 23, 42, 0.08);
+      color: rgba(15, 23, 42, 0.6);
     }
     #webring-widget.wring-fixed {
       position: fixed;
@@ -34,14 +34,14 @@
       z-index: 9999;
     }
     #webring-widget a {
-      color: #818cf8;
+      color: #6366f1;
       text-decoration: none;
       transition: color 0.15s;
     }
-    #webring-widget a:hover { color: #fff; }
-    #webring-widget .wring-name { color: rgba(255,255,255,0.75); }
-    #webring-widget .wring-sep { opacity: 0.25; user-select: none; }
-    #webring-widget .wring-join { opacity: 0.6; }
+    #webring-widget a:hover { color: #0f172a; }
+    #webring-widget .wring-name { color: rgba(15, 23, 42, 0.8); }
+    #webring-widget .wring-sep { opacity: 0.3; user-select: none; }
+    #webring-widget .wring-join { opacity: 0.65; }
     #webring-widget .wring-join:hover { opacity: 1; }
   `;
 

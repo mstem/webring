@@ -8,12 +8,13 @@
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
-      --accent: #818cf8;
-      --bg: #0a0a14;
-      --surface: #12121f;
-      --border: rgba(255,255,255,0.07);
-      --text: #e2e8f0;
-      --muted: rgba(255,255,255,0.45);
+      --accent: #6366f1;
+      --accent-hover: #4f46e5;
+      --bg: #ffffff;
+      --surface: #f7f7fa;
+      --border: rgba(15, 23, 42, 0.08);
+      --text: #0f172a;
+      --muted: #64748b;
     }
 
     body {
@@ -75,7 +76,7 @@
       padding: 0.9rem 1rem;
       font-family: ui-monospace, monospace;
       font-size: 0.78rem;
-      color: #a5b4fc;
+      color: var(--accent-hover);
       white-space: pre-wrap;
       word-break: break-all;
       cursor: pointer;
@@ -96,7 +97,7 @@
     form { display: flex; flex-direction: column; gap: 0.75rem; }
     label { font-size: 0.78rem; color: var(--muted); display: flex; flex-direction: column; gap: 0.3rem; }
     input, textarea {
-      background: var(--surface);
+      background: #ffffff;
       border: 1px solid var(--border);
       border-radius: 6px;
       padding: 0.55rem 0.75rem;
@@ -111,19 +112,19 @@
     button[type=submit] {
       align-self: flex-start;
       background: var(--accent);
-      color: #0a0a14;
+      color: #ffffff;
       border: none;
       border-radius: 6px;
       padding: 0.55rem 1.2rem;
       font-weight: 600;
       font-size: 0.82rem;
       cursor: pointer;
-      transition: opacity 0.15s;
+      transition: background 0.15s;
     }
-    button[type=submit]:hover { opacity: 0.85; }
+    button[type=submit]:hover { background: var(--accent-hover); }
     .form-message { font-size: 0.82rem; padding: 0.6rem 0.9rem; border-radius: 6px; }
-    .form-message.ok { background: rgba(52,211,153,0.1); color: #6ee7b7; border: 1px solid rgba(52,211,153,0.2); }
-    .form-message.err { background: rgba(248,113,113,0.1); color: #fca5a5; border: 1px solid rgba(248,113,113,0.2); }
+    .form-message.ok { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
+    .form-message.err { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
 
     footer {
       text-align: center;

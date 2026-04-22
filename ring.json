@@ -7,8 +7,8 @@
     "label": "Add your project"
   },
   "theme": {
-    "accent": "#818cf8",
-    "background": "rgba(10, 10, 20, 0.9)",
-    "text": "#ffffff"
+    "accent": "#6366f1",
+    "background": "rgba(255, 255, 255, 0.9)",
+    "text": "#0f172a"
   }
 }
