@@ -154,13 +154,19 @@ app.post('/api/submit', (req, res) => {
 
 app.get('/admin', requireAdminAuth, (req, res) => {
   const submissions = loadSubmissions();
-  const rows = submissions.map((s) => `
+  const rows = submissions.map((s, i) => `
     <tr>
       <td>${escapeHtml(s.name)}</td>
       <td><a href="${escapeHtml(s.url)}" target="_blank" rel="noopener">${escapeHtml(s.url)}</a></td>
       <td>${escapeHtml(s.description)}</td>
       <td>${escapeHtml(s.contact)}</td>
       <td>${escapeHtml(s.submittedAt)}</td>
+      <td>
+        <form method="POST" action="/admin/submissions/delete" onsubmit="return confirm('Delete this submission?')">
+          <input type="hidden" name="index" value="${i}">
+          <button type="submit">Delete</button>
+        </form>
+      </td>
     </tr>`).join('');
 
   res.send(`<!doctype html>
@@ -171,15 +177,27 @@ app.get('/admin', requireAdminAuth, (req, res) => {
   table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
   th, td { border: 1px solid #ddd; padding: 0.5rem 0.75rem; text-align: left; vertical-align: top; }
   th { background: #f5f5f5; }
+  button { cursor: pointer; }
 </style></head>
 <body>
   <h1>Pending submissions (${submissions.length})</h1>
-  <p>Approve by adding an entry to <code>members.json</code>, then remove it from <code>submissions.json</code>.</p>
+  <p>Approve by adding an entry to <code>members.json</code>, then delete it from here.</p>
   <table>
-    <thead><tr><th>Name</th><th>URL</th><th>Description</th><th>Contact</th><th>Submitted</th></tr></thead>
-    <tbody>${rows || '<tr><td colspan="5">No pending submissions.</td></tr>'}</tbody>
+    <thead><tr><th>Name</th><th>URL</th><th>Description</th><th>Contact</th><th>Submitted</th><th></th></tr></thead>
+    <tbody>${rows || '<tr><td colspan="6">No pending submissions.</td></tr>'}</tbody>
   </table>
 </body></html>`);
+});
+
+app.post('/admin/submissions/delete', requireAdminAuth, (req, res) => {
+  const submissions = loadSubmissions();
+  const index = parseInt(req.body.index, 10);
+  if (Number.isNaN(index) || index < 0 || index >= submissions.length) {
+    return res.status(400).send('Invalid index.');
+  }
+  submissions.splice(index, 1);
+  saveSubmissions(submissions);
+  res.redirect('/admin');
 });
 
 // --- Serve index for all other routes (SPA-style) ---
