@@ -1,10 +1,13 @@
 import express from 'express';
-import { readFileSync, writeFileSync, existsSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
+import { timingSafeEqual } from 'crypto';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
+const DATA_DIR = process.env.DATA_DIR || ROOT;
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
 
 const app = express();
 app.use(express.json());
@@ -29,13 +32,38 @@ function loadRing() {
 }
 
 function loadSubmissions() {
-  const path = join(ROOT, 'submissions.json');
+  const path = join(DATA_DIR, 'submissions.json');
   if (!existsSync(path)) return [];
   return JSON.parse(readFileSync(path, 'utf8'));
 }
 
 function saveSubmissions(submissions) {
-  writeFileSync(join(ROOT, 'submissions.json'), JSON.stringify(submissions, null, 2));
+  if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
+  writeFileSync(join(DATA_DIR, 'submissions.json'), JSON.stringify(submissions, null, 2));
+}
+
+function escapeHtml(str) {
+  return String(str ?? '').replace(/[&<>"']/g, (c) => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[c]));
+}
+
+function requireAdminAuth(req, res, next) {
+  if (!ADMIN_PASSWORD) {
+    return res.status(503).send('Admin page is not configured (ADMIN_PASSWORD not set).');
+  }
+  const header = req.headers.authorization || '';
+  const [scheme, encoded] = header.split(' ');
+  const decoded = encoded ? Buffer.from(encoded, 'base64').toString('utf8') : '';
+  const password = decoded.includes(':') ? decoded.slice(decoded.indexOf(':') + 1) : decoded;
+  const a = Buffer.from(password);
+  const b = Buffer.from(ADMIN_PASSWORD);
+  const match = scheme === 'Basic' && a.length === b.length && timingSafeEqual(a, b);
+  if (!match) {
+    res.setHeader('WWW-Authenticate', 'Basic realm="Webring Admin"');
+    return res.status(401).send('Authentication required.');
+  }
+  next();
 }
 
 function normalizeUrl(url) {
@@ -120,6 +148,38 @@ app.post('/api/submit', (req, res) => {
 
   saveSubmissions(submissions);
   res.json({ ok: true, message: 'Submission received! It will be reviewed before being added.' });
+});
+
+// --- Admin: view pending submissions ---
+
+app.get('/admin', requireAdminAuth, (req, res) => {
+  const submissions = loadSubmissions();
+  const rows = submissions.map((s) => `
+    <tr>
+      <td>${escapeHtml(s.name)}</td>
+      <td><a href="${escapeHtml(s.url)}" target="_blank" rel="noopener">${escapeHtml(s.url)}</a></td>
+      <td>${escapeHtml(s.description)}</td>
+      <td>${escapeHtml(s.contact)}</td>
+      <td>${escapeHtml(s.submittedAt)}</td>
+    </tr>`).join('');
+
+  res.send(`<!doctype html>
+<html><head><meta charset="utf-8"><title>Webring Admin — Pending Submissions</title>
+<style>
+  body { font-family: system-ui, sans-serif; margin: 2rem; color: #1a1a1a; background: #fff; }
+  h1 { font-size: 1.4rem; }
+  table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
+  th, td { border: 1px solid #ddd; padding: 0.5rem 0.75rem; text-align: left; vertical-align: top; }
+  th { background: #f5f5f5; }
+</style></head>
+<body>
+  <h1>Pending submissions (${submissions.length})</h1>
+  <p>Approve by adding an entry to <code>members.json</code>, then remove it from <code>submissions.json</code>.</p>
+  <table>
+    <thead><tr><th>Name</th><th>URL</th><th>Description</th><th>Contact</th><th>Submitted</th></tr></thead>
+    <tbody>${rows || '<tr><td colspan="5">No pending submissions.</td></tr>'}</tbody>
+  </table>
+</body></html>`);
 });
 
 // --- Serve index for all other routes (SPA-style) ---
