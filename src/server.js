@@ -197,9 +197,12 @@ app.post('/api/members/sync', requireAdminSecret, (req, res) => {
     return res.json({ ok: true, removed: true, count: members.length });
   }
 
+  // Keep the path — project sites hosted under one origin (GitHub Pages and
+  // friends) are a different member than the origin's root. Matching stays
+  // origin-based, in line with the rest of the ring.
   const entry = {
     name: String(name || parsedUrl.hostname).trim().slice(0, 100),
-    url: parsedUrl.origin,
+    url: parsedUrl.href.replace(/\/$/, ''),
     description: String(description || '').trim().slice(0, 300),
   };
   if (idx === -1) members.push(entry); else members[idx] = entry;
