@@ -51,6 +51,78 @@ function saveSubmissions(submissions) {
   writeFileSync(join(DATA_DIR, 'submissions.json'), JSON.stringify(submissions, null, 2));
 }
 
+// --- Member health ---
+//
+// A ring exists to send visitors somewhere, so a member whose site no longer
+// answers is worse than no member at all. Every member URL is re-checked on a
+// timer and the result cached here; unreachable members drop out of the public
+// ring but stay in members.json, so the dashboard still shows them as joined.
+//
+// Unknown means reachable: a member added seconds ago, or a ring booted before
+// its first sweep, must not vanish just because nothing has checked it yet.
+
+const HEALTH_INTERVAL_MS = 15 * 60 * 1000;
+
+// Keyed by the full URL, not the origin: two members can share an origin and
+// differ only by path, and each needs its own verdict.
+function healthKey(url) {
+  return String(url || '').replace(/\/$/, '').toLowerCase();
+}
+
+function loadHealth() {
+  const path = join(DATA_DIR, 'health.json');
+  if (!existsSync(path)) return {};
+  try { return JSON.parse(readFileSync(path, 'utf8')); } catch { return {}; }
+}
+
+function saveHealth(health) {
+  if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
+  writeFileSync(join(DATA_DIR, 'health.json'), JSON.stringify(health, null, 2));
+}
+
+async function checkUrl(url) {
+  const at = new Date().toISOString();
+  const opts = {
+    redirect: 'follow',
+    signal: AbortSignal.timeout(10000),
+    headers: { 'User-Agent': 'webring-healthcheck' },
+  };
+  try {
+    let r = await fetch(url, { ...opts, method: 'HEAD' });
+    // Plenty of hosts mishandle HEAD; confirm a failure with a real GET before
+    // dropping a member from the ring.
+    if (r.status >= 400) r = await fetch(url, { ...opts, method: 'GET' });
+    return { ok: r.status >= 200 && r.status < 400, status: r.status, checkedAt: at };
+  } catch (e) {
+    return { ok: false, status: 0, error: String(e?.message || e).slice(0, 120), checkedAt: at };
+  }
+}
+
+async function refreshHealth() {
+  const members = loadMembers();
+  const health = loadHealth();
+  const results = await Promise.all(members.map(m => checkUrl(m.url)));
+  members.forEach((m, i) => { health[healthKey(m.url)] = results[i]; });
+
+  // Forget members that have since left the ring.
+  const live = new Set(members.map(m => healthKey(m.url)));
+  for (const key of Object.keys(health)) if (!live.has(key)) delete health[key];
+
+  saveHealth(health);
+  return health;
+}
+
+function isReachable(member, health) {
+  const h = health[healthKey(member.url)];
+  return h ? h.ok : true;
+}
+
+// What visitors get: joined members that actually answer.
+function reachableMembers() {
+  const health = loadHealth();
+  return loadMembers().filter(m => isReachable(m, health));
+}
+
 function escapeHtml(str) {
   return String(str ?? '').replace(/[&<>"']/g, (c) => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
@@ -105,7 +177,7 @@ function findMemberIndex(members, from) {
 // --- Navigation routes ---
 
 app.get('/next', (req, res) => {
-  const members = loadMembers();
+  const members = reachableMembers();
   if (members.length === 0) return res.redirect('/');
   const idx = findMemberIndex(members, req.query.from || '');
   const next = (idx === -1 ? 0 : (idx + 1) % members.length);
@@ -113,7 +185,7 @@ app.get('/next', (req, res) => {
 });
 
 app.get('/prev', (req, res) => {
-  const members = loadMembers();
+  const members = reachableMembers();
   if (members.length === 0) return res.redirect('/');
   const idx = findMemberIndex(members, req.query.from || '');
   const prev = (idx === -1 ? 0 : (idx - 1 + members.length) % members.length);
@@ -121,7 +193,7 @@ app.get('/prev', (req, res) => {
 });
 
 app.get('/random', (req, res) => {
-  const members = loadMembers();
+  const members = reachableMembers();
   if (members.length === 0) return res.redirect('/');
   const idx = findMemberIndex(members, req.query.from || '');
   const pool = members.length > 1 ? members.filter((_, i) => i !== idx) : members;
@@ -131,7 +203,19 @@ app.get('/random', (req, res) => {
 // --- API ---
 
 app.get('/api/ring', (req, res) => res.json(loadRing()));
-app.get('/api/members', (req, res) => res.json(loadMembers()));
+
+// Public view of the ring: joined members whose sites currently answer.
+app.get('/api/members', (req, res) => res.json(reachableMembers()));
+
+// Everything joined, health included. The dashboard reads this so a member that
+// is merely unreachable still shows as checked rather than silently leaving.
+app.get('/api/members/all', (req, res) => {
+  const health = loadHealth();
+  res.json(loadMembers().map(m => {
+    const h = health[healthKey(m.url)] || null;
+    return { ...m, reachable: isReachable(m, health), health: h };
+  }));
+});
 
 // --- Join / submission ---
 
@@ -208,12 +292,38 @@ app.post('/api/members/sync', requireAdminSecret, (req, res) => {
   if (idx === -1) members.push(entry); else members[idx] = entry;
   saveMembers(members);
   res.json({ ok: true, added: idx === -1, updated: idx !== -1, count: members.length });
+
+  // Classify the new member without making the caller wait; until this lands it
+  // counts as reachable, so a working site is never briefly missing from the ring.
+  checkUrl(entry.url)
+    .then((result) => {
+      const health = loadHealth();
+      health[healthKey(entry.url)] = result;
+      saveHealth(health);
+    })
+    .catch(() => {});
 });
 
 // --- Admin: view pending submissions ---
 
 app.get('/admin', requireAdminAuth, (req, res) => {
   const submissions = loadSubmissions();
+  const health = loadHealth();
+  const members = loadMembers();
+  const hidden = members.filter(m => !isReachable(m, health));
+  const memberRows = members.map((m) => {
+    const h = health[healthKey(m.url)];
+    const state = !h ? 'not checked yet'
+      : h.ok ? `in the ring (${h.status})`
+      : `hidden — ${h.status ? `HTTP ${h.status}` : h.error || 'unreachable'}`;
+    return `
+    <tr>
+      <td>${escapeHtml(m.name)}</td>
+      <td><a href="${escapeHtml(m.url)}" target="_blank" rel="noopener">${escapeHtml(m.url)}</a></td>
+      <td>${escapeHtml(state)}</td>
+      <td>${escapeHtml(h?.checkedAt || '—')}</td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="4">No members yet.</td></tr>';
   const rows = submissions.map((s, i) => `
     <tr>
       <td>${escapeHtml(s.name)}</td>
@@ -246,7 +356,20 @@ app.get('/admin', requireAdminAuth, (req, res) => {
     <thead><tr><th>Name</th><th>URL</th><th>Description</th><th>Contact</th><th>Submitted</th><th></th></tr></thead>
     <tbody>${rows || '<tr><td colspan="6">No pending submissions.</td></tr>'}</tbody>
   </table>
+
+  <h1>Members (${members.length}) — ${hidden.length} hidden</h1>
+  <p>A member whose site stops answering is held back from the ring until it responds again. Nothing is removed.</p>
+  <table>
+    <thead><tr><th>Name</th><th>URL</th><th>State</th><th>Last checked</th></tr></thead>
+    <tbody>${memberRows}</tbody>
+  </table>
+  <form method="POST" action="/admin/members/recheck"><button type="submit">Re-check now</button></form>
 </body></html>`);
+});
+
+app.post('/admin/members/recheck', requireAdminAuth, async (req, res) => {
+  await refreshHealth();
+  res.redirect('/admin');
 });
 
 app.post('/admin/submissions/delete', requireAdminAuth, (req, res) => {
@@ -266,4 +389,10 @@ app.get('*', (req, res) => {
 });
 
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`Web ring running on http://localhost:${PORT}`));
+app.listen(PORT, () => {
+  console.log(`Web ring running on http://localhost:${PORT}`);
+  // First sweep runs shortly after boot rather than during it, so a slow or
+  // unreachable member can never hold up serving the ring.
+  setTimeout(() => { refreshHealth().catch(() => {}); }, 5000);
+  setInterval(() => { refreshHealth().catch(() => {}); }, HEALTH_INTERVAL_MS);
+});
