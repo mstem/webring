@@ -1,1 +1,22 @@
-[]
+[
+  {
+    "name": "daily-briefing",
+    "url": "http://k517kxh9fwmk2djcuiu1f9cp.91.98.23.69.sslip.io/",
+    "description": "Delivers a morning briefing every day, plus weekly personal and foundation summaries."
+  },
+  {
+    "name": "fridge",
+    "url": "https://fridge.mindshine.io",
+    "description": "Keeps track of what's in the fridge — scan a receipt to log items, get a nudge before anything expires."
+  },
+  {
+    "name": "mission-command",
+    "url": "https://command.mindshine.io",
+    "description": "A live dashboard for every coding project on one machine — activity, git health, and security in one view."
+  },
+  {
+    "name": "social-pipeline",
+    "url": "https://github.com/mstem/social-pipeline",
+    "description": "Monorepo managing concurrent development and builds for a social media backend and frontend application."
+  }
+]

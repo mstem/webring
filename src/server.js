@@ -23,8 +23,17 @@ app.use(express.static(join(ROOT, 'public')));
 
 // --- Data helpers ---
 
+// Members live on the persistent data dir once anything has written them, so
+// edits survive a redeploy. The copy in the repo root is the initial seed.
 function loadMembers() {
-  return JSON.parse(readFileSync(join(ROOT, 'members.json'), 'utf8'));
+  const livePath = join(DATA_DIR, 'members.json');
+  const path = existsSync(livePath) ? livePath : join(ROOT, 'members.json');
+  return JSON.parse(readFileSync(path, 'utf8'));
+}
+
+function saveMembers(members) {
+  if (!existsSync(DATA_DIR)) mkdirSync(DATA_DIR, { recursive: true });
+  writeFileSync(join(DATA_DIR, 'members.json'), JSON.stringify(members, null, 2));
 }
 
 function loadRing() {
@@ -62,6 +71,20 @@ function requireAdminAuth(req, res, next) {
   if (!match) {
     res.setHeader('WWW-Authenticate', 'Basic realm="Webring Admin"');
     return res.status(401).send('Authentication required.');
+  }
+  next();
+}
+
+// Same secret as the admin page, presented as a header instead of Basic auth so
+// that machine callers (the dashboard) don't have to build an auth header.
+function requireAdminSecret(req, res, next) {
+  if (!ADMIN_PASSWORD) {
+    return res.status(503).json({ error: 'Sync is not configured (ADMIN_PASSWORD not set).' });
+  }
+  const a = Buffer.from(String(req.headers['x-admin-secret'] || ''));
+  const b = Buffer.from(ADMIN_PASSWORD);
+  if (a.length !== b.length || !timingSafeEqual(a, b)) {
+    return res.status(401).json({ error: 'Invalid admin secret.' });
   }
   next();
 }
@@ -148,6 +171,40 @@ app.post('/api/submit', (req, res) => {
 
   saveSubmissions(submissions);
   res.json({ ok: true, message: 'Submission received! It will be reviewed before being added.' });
+});
+
+// --- Admin: add or remove a member directly (used by the dashboard) ---
+
+app.post('/api/members/sync', requireAdminSecret, (req, res) => {
+  const { name, url, description, remove } = req.body || {};
+  if (!url) return res.status(400).json({ error: 'url is required.' });
+
+  let parsedUrl;
+  try {
+    parsedUrl = new URL(url.startsWith('http') ? url : `https://${url}`);
+  } catch {
+    return res.status(400).json({ error: 'Invalid URL.' });
+  }
+
+  const members = loadMembers();
+  const key = normalizeUrl(parsedUrl.href);
+  const idx = members.findIndex(m => normalizeUrl(m.url) === key);
+
+  if (remove) {
+    if (idx === -1) return res.json({ ok: true, removed: false, count: members.length });
+    members.splice(idx, 1);
+    saveMembers(members);
+    return res.json({ ok: true, removed: true, count: members.length });
+  }
+
+  const entry = {
+    name: String(name || parsedUrl.hostname).trim().slice(0, 100),
+    url: parsedUrl.origin,
+    description: String(description || '').trim().slice(0, 300),
+  };
+  if (idx === -1) members.push(entry); else members[idx] = entry;
+  saveMembers(members);
+  res.json({ ok: true, added: idx === -1, updated: idx !== -1, count: members.length });
 });
 
 // --- Admin: view pending submissions ---
