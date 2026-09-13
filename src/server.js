@@ -384,7 +384,7 @@ app.post('/admin/submissions/delete', requireAdminAuth, (req, res) => {
 });
 
 // --- Serve index for all other routes (SPA-style) ---
-app.get('*', (req, res) => {
+app.get('/{*splat}', (req, res) => {
   res.sendFile(join(ROOT, 'public', 'index.html'));
 });
 
