@@ -3,6 +3,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { timingSafeEqual } from 'crypto';
+import { isPublicMemberUrl, publicMembers, NOT_PUBLIC_ERROR } from './member-url.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
@@ -25,10 +26,12 @@ app.use(express.static(join(ROOT, 'public')));
 
 // Members live on the persistent data dir once anything has written them, so
 // edits survive a redeploy. The copy in the repo root is the initial seed.
+// Entries without a public hostname are dropped on every read, so an old copy
+// on the data dir can never put one back in front of visitors.
 function loadMembers() {
   const livePath = join(DATA_DIR, 'members.json');
   const path = existsSync(livePath) ? livePath : join(ROOT, 'members.json');
-  return JSON.parse(readFileSync(path, 'utf8'));
+  return publicMembers(JSON.parse(readFileSync(path, 'utf8')));
 }
 
 function saveMembers(members) {
@@ -236,6 +239,9 @@ app.post('/api/submit', (req, res) => {
   } catch {
     return res.status(400).json({ error: 'Invalid URL.' });
   }
+  if (!isPublicMemberUrl(parsedUrl.href)) {
+    return res.status(400).json({ error: NOT_PUBLIC_ERROR });
+  }
 
   const submissions = loadSubmissions();
   const members = loadMembers();
@@ -268,6 +274,9 @@ app.post('/api/members/sync', requireAdminSecret, (req, res) => {
     parsedUrl = new URL(url.startsWith('http') ? url : `https://${url}`);
   } catch {
     return res.status(400).json({ error: 'Invalid URL.' });
+  }
+  if (!remove && !isPublicMemberUrl(parsedUrl.href)) {
+    return res.status(400).json({ error: NOT_PUBLIC_ERROR });
   }
 
   const members = loadMembers();
