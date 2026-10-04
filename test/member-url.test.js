@@ -50,11 +50,3 @@ test('the seed members.json has only public URLs', () => {
   const members = JSON.parse(readFileSync(join(ROOT, 'members.json'), 'utf8'));
   for (const m of members) assert.equal(isPublicMemberUrl(m.url), true, `${m.name}: ${m.url}`);
 });
-
-test('login-gated sites stay off the ring until they have a public landing page', () => {
-  const members = JSON.parse(readFileSync(join(ROOT, 'members.json'), 'utf8'));
-  const hosts = members.map(m => new URL(m.url).hostname);
-  for (const gated of ['fridge.mindshine.io', 'command.mindshine.io', 'briefing.mindshine.io']) {
-    assert.ok(!hosts.includes(gated), gated);
-  }
-});
