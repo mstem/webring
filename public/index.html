@@ -5,6 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Web Ring</title>
   <meta name="description" content="A hand-kept ring of independently built projects. Walk from one to the next." />
+  <script>
+    // Set the dark palette before first paint when the link already names it.
+    if (new URLSearchParams(location.search).get('factory') === 'bad') document.documentElement.dataset.factory = 'bad';
+  </script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -22,6 +26,17 @@
 
       --gutter: clamp(20px, 5vw, 64px);
       --max: 1120px;
+    }
+
+    /* The Bad Idea Factory is the same ring after dark. */
+    :root[data-factory="bad"] {
+      --paper: #141413;
+      --card: #1c1c1a;
+      --ink: #ecebe6;
+      --muted: #9a998f;
+      --rule: #34342f;
+      --rule-strong: #ecebe6;
+      --accent: #8f92f7;
     }
 
     html { -webkit-text-size-adjust: 100%; }
@@ -58,6 +73,22 @@
       align-items: center;
       gap: 12px;
     }
+    .factory-switch {
+      order: 2;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: none;
+      border: 1px solid var(--rule);
+      border-radius: 4px;
+      color: var(--ink);
+      font: inherit;
+      padding: 6px 10px;
+      cursor: pointer;
+      transition: border-color 120ms linear;
+    }
+    .factory-switch:hover { border-color: var(--ink); }
+    .factory-switch svg { width: 14px; height: 14px; flex: none; }
     .eyebrow::after {
       content: "";
       flex: 1;
@@ -335,7 +366,10 @@
 <body>
   <div class="wrap">
     <header class="masthead">
-      <p class="eyebrow" id="eyebrow">Web ring</p>
+      <div class="eyebrow">
+        <span id="eyebrow">Web ring</span>
+        <button class="factory-switch" id="factory-switch" type="button"></button>
+      </div>
       <h1 id="ring-name">Web Ring</h1>
       <p class="lede" id="ring-desc">A hand-kept circle of independently built projects. Every member carries a small bar linking to its neighbours, so one site leads to the next without a search box in between.</p>
 
@@ -392,7 +426,7 @@
             <p>Any member other than the one you are on.</p>
           </div>
         </div>
-        <a class="btn" href="/random"><span class="arrow">&#8594;</span> Open a member at random</a>
+        <a class="btn" id="random" href="/random"><span class="arrow">&#8594;</span> Open a member at random</a>
       </section>
 
       <!-- 03 — Embed -->
@@ -435,21 +469,45 @@
       try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return ''; }
     };
 
-    async function init() {
-      const [ring, members] = await Promise.all([
-        fetch('/api/ring').then(r => r.json()),
-        fetch('/api/members').then(r => r.json()),
-      ]);
+    // Sun for the good (light) factory, moon for the bad (dark) one.
+    const ICONS = {
+      good: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>',
+      bad: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>',
+    };
+    const other = (f) => (f === 'bad' ? 'good' : 'bad');
 
-      document.title = ring.name;
-      document.getElementById('ring-name').textContent = ring.name;
-      document.getElementById('footer-name').textContent = ring.name;
-      if (ring.description) document.getElementById('ring-desc').textContent = ring.description;
+    let ring;
+    let factory = 'good';
 
-      if (ring.theme?.accent) {
-        document.documentElement.style.setProperty('--accent', ring.theme.accent);
-      }
+    async function show(next) {
+      factory = next;
+      const root = document.documentElement;
+      root.dataset.factory = factory;
+      // The configured accent belongs to the light page; the dark one keeps its own.
+      if (factory === 'good' && ring.theme?.accent) root.style.setProperty('--accent', ring.theme.accent);
+      else root.style.removeProperty('--accent');
 
+      const name = ring.factories[factory].name;
+      document.title = `${name} · ${ring.name}`;
+      document.getElementById('ring-name').textContent = name;
+      const desc = ring.factories[factory].description || ring.description;
+      if (desc) document.getElementById('ring-desc').textContent = desc;
+
+      const sw = document.getElementById('factory-switch');
+      sw.innerHTML = `${ICONS[other(factory)]}<span>${esc(ring.factories[other(factory)].name)}</span>`;
+      document.getElementById('random').href = `/random?factory=${factory}`;
+
+      const url = new URL(location.href);
+      url.searchParams.delete('from');
+      url.searchParams.set('factory', factory);
+      history.replaceState(null, '', url);
+
+      const members = await fetch(`/api/members?factory=${factory}`).then(r => r.json());
+      if (factory !== next) return; // a later toggle won the race
+      renderMembers(members);
+    }
+
+    function renderMembers(members) {
       document.getElementById('member-count').textContent = String(members.length).padStart(2, '0');
 
       const list = document.getElementById('members-list');
@@ -465,6 +523,20 @@
               <span class="row-host">${esc(host(m.url))}</span>
             </a>`).join('')
         : '<div class="row-empty">No members answering right now.</div>';
+    }
+
+    async function init() {
+      // Open in the mode of the site the visitor came from, if they came from one.
+      const params = new URLSearchParams(location.search);
+      const from = params.get('from');
+      ring = await fetch(`/api/ring${from ? `?from=${encodeURIComponent(from)}` : ''}`).then(r => r.json());
+      const asked = params.get('factory');
+      const start = (asked === 'good' || asked === 'bad') ? asked : ring.factory;
+
+      document.getElementById('eyebrow').textContent = ring.name;
+      document.getElementById('footer-name').textContent = ring.name;
+      document.getElementById('factory-switch').addEventListener('click', () => show(other(factory)));
+      await show(start);
 
       const snippet = '<' + `script src="${RING_URL}/widget.js"></` + 'script>';
       document.getElementById('snippet').textContent = snippet;

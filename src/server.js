@@ -4,6 +4,7 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { timingSafeEqual } from 'crypto';
 import { isPublicMemberUrl, publicMembers, NOT_PUBLIC_ERROR } from './member-url.js';
+import { factoryOf, parseFactory, otherFactory, factoriesOf } from './factory.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
@@ -120,11 +121,18 @@ function isReachable(member, health) {
   return h ? h.ok : true;
 }
 
-// What visitors get: joined members that actually answer.
-function reachableMembers() {
+// What visitors get: joined members that actually answer, from one factory
+// when one is given.
+function reachableMembers(factory) {
   const health = loadHealth();
-  return loadMembers().filter(m => isReachable(m, health));
+  return loadMembers().filter(m => isReachable(m, health) && (!factory || factoryOf(m) === factory));
 }
+
+// Sun for the good (light) factory, moon for the bad (dark) one.
+const FACTORY_ICONS = {
+  good: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>',
+  bad: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>',
+};
 
 function escapeHtml(str) {
   return String(str ?? '').replace(/[&<>"']/g, (c) => ({
@@ -177,10 +185,19 @@ function findMemberIndex(members, from) {
   return members.findIndex(m => normalizeUrl(m.url) === needle);
 }
 
+// The factory a visitor is walking: the one their current site belongs to,
+// else one named outright, else good.
+function factoryForRequest(req) {
+  const members = loadMembers();
+  const idx = req.query.from ? findMemberIndex(members, req.query.from) : -1;
+  if (idx !== -1) return factoryOf(members[idx]);
+  return parseFactory(req.query.factory) || 'good';
+}
+
 // --- Navigation routes ---
 
 app.get('/next', (req, res) => {
-  const members = reachableMembers();
+  const members = reachableMembers(factoryForRequest(req));
   if (members.length === 0) return res.redirect('/');
   const idx = findMemberIndex(members, req.query.from || '');
   const next = (idx === -1 ? 0 : (idx + 1) % members.length);
@@ -188,7 +205,7 @@ app.get('/next', (req, res) => {
 });
 
 app.get('/prev', (req, res) => {
-  const members = reachableMembers();
+  const members = reachableMembers(factoryForRequest(req));
   if (members.length === 0) return res.redirect('/');
   const idx = findMemberIndex(members, req.query.from || '');
   const prev = (idx === -1 ? 0 : (idx - 1 + members.length) % members.length);
@@ -196,7 +213,7 @@ app.get('/prev', (req, res) => {
 });
 
 app.get('/random', (req, res) => {
-  const members = reachableMembers();
+  const members = reachableMembers(factoryForRequest(req));
   if (members.length === 0) return res.redirect('/');
   const idx = findMemberIndex(members, req.query.from || '');
   const pool = members.length > 1 ? members.filter((_, i) => i !== idx) : members;
@@ -205,10 +222,15 @@ app.get('/random', (req, res) => {
 
 // --- API ---
 
-app.get('/api/ring', (req, res) => res.json(loadRing()));
+app.get('/api/ring', (req, res) => {
+  const ring = loadRing();
+  res.json({ ...ring, factories: factoriesOf(ring), factory: factoryForRequest(req) });
+});
 
-// Public view of the ring: joined members whose sites currently answer.
-app.get('/api/members', (req, res) => res.json(reachableMembers()));
+// Public view of one factory: joined members whose sites currently answer.
+app.get('/api/members', (req, res) => {
+  res.json(reachableMembers(parseFactory(req.query.factory) || 'good'));
+});
 
 // Everything joined, health included. The dashboard reads this so a member that
 // is merely unreachable still shows as checked rather than silently leaving.
@@ -216,7 +238,7 @@ app.get('/api/members/all', (req, res) => {
   const health = loadHealth();
   res.json(loadMembers().map(m => {
     const h = health[healthKey(m.url)] || null;
-    return { ...m, reachable: isReachable(m, health), health: h };
+    return { ...m, factory: factoryOf(m), reachable: isReachable(m, health), health: h };
   }));
 });
 
@@ -266,7 +288,7 @@ app.post('/api/submit', (req, res) => {
 // --- Admin: add or remove a member directly (used by the dashboard) ---
 
 app.post('/api/members/sync', requireAdminSecret, (req, res) => {
-  const { name, url, description, remove } = req.body || {};
+  const { name, url, description, remove, factory } = req.body || {};
   if (!url) return res.status(400).json({ error: 'url is required.' });
 
   let parsedUrl;
@@ -298,6 +320,9 @@ app.post('/api/members/sync', requireAdminSecret, (req, res) => {
     url: parsedUrl.href.replace(/\/$/, ''),
     description: String(description || '').trim().slice(0, 300),
   };
+  // A re-sync that names no factory leaves the member where it was.
+  const chosen = parseFactory(factory) || (idx === -1 ? null : members[idx].factory);
+  if (chosen) entry.factory = chosen;
   if (idx === -1) members.push(entry); else members[idx] = entry;
   saveMembers(members);
   res.json({ ok: true, added: idx === -1, updated: idx !== -1, count: members.length });
@@ -318,8 +343,12 @@ app.post('/api/members/sync', requireAdminSecret, (req, res) => {
 app.get('/admin', requireAdminAuth, (req, res) => {
   const submissions = loadSubmissions();
   const health = loadHealth();
-  const members = loadMembers();
+  const factory = parseFactory(req.query.factory) || 'good';
+  const other = otherFactory(factory);
+  const names = factoriesOf(loadRing());
+  const members = loadMembers().filter(m => factoryOf(m) === factory);
   const hidden = members.filter(m => !isReachable(m, health));
+  const keep = `<input type="hidden" name="factory" value="${factory}">`;
   const memberRows = members.map((m) => {
     const h = health[healthKey(m.url)];
     const state = !h ? 'not checked yet'
@@ -343,22 +372,29 @@ app.get('/admin', requireAdminAuth, (req, res) => {
       <td>
         <form method="POST" action="/admin/submissions/delete" onsubmit="return confirm('Delete this submission?')">
           <input type="hidden" name="index" value="${i}">
+          ${keep}
           <button type="submit">Delete</button>
         </form>
       </td>
     </tr>`).join('');
 
   res.send(`<!doctype html>
-<html><head><meta charset="utf-8"><title>Webring Admin — Pending Submissions</title>
+<html lang="en" data-factory="${factory}"><head><meta charset="utf-8"><title>Webring Admin — ${escapeHtml(names[factory].name)}</title>
 <style>
-  body { font-family: system-ui, sans-serif; margin: 2rem; color: #1a1a1a; background: #fff; }
+  :root { --paper: #fff; --ink: #1a1a1a; --rule: #ddd; --head: #f5f5f5; --link: #4f46e5; }
+  :root[data-factory="bad"] { --paper: #141413; --ink: #ecebe6; --rule: #3a3a37; --head: #1f1f1d; --link: #a5a8f8; }
+  body { font-family: system-ui, sans-serif; margin: 2rem; color: var(--ink); background: var(--paper); }
+  a { color: var(--link); }
   h1 { font-size: 1.4rem; }
   table { border-collapse: collapse; width: 100%; margin-top: 1rem; }
-  th, td { border: 1px solid #ddd; padding: 0.5rem 0.75rem; text-align: left; vertical-align: top; }
-  th { background: #f5f5f5; }
+  th, td { border: 1px solid var(--rule); padding: 0.5rem 0.75rem; text-align: left; vertical-align: top; }
+  th { background: var(--head); }
   button { cursor: pointer; }
+  .switch { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.9rem; text-decoration: none; border: 1px solid var(--rule); border-radius: 6px; padding: 0.35rem 0.7rem; }
+  .switch svg { width: 15px; height: 15px; }
 </style></head>
 <body>
+  <a class="switch" href="/admin?factory=${other}">${FACTORY_ICONS[other]}${escapeHtml(names[other].name)}</a>
   <h1>Pending submissions (${submissions.length})</h1>
   <p>Approve by adding an entry to <code>members.json</code>, then delete it from here.</p>
   <table>
@@ -366,19 +402,19 @@ app.get('/admin', requireAdminAuth, (req, res) => {
     <tbody>${rows || '<tr><td colspan="6">No pending submissions.</td></tr>'}</tbody>
   </table>
 
-  <h1>Members (${members.length}) — ${hidden.length} hidden</h1>
+  <h1>${escapeHtml(names[factory].name)}: members (${members.length}), ${hidden.length} hidden</h1>
   <p>A member whose site stops answering is held back from the ring until it responds again. Nothing is removed.</p>
   <table>
     <thead><tr><th>Name</th><th>URL</th><th>State</th><th>Last checked</th></tr></thead>
     <tbody>${memberRows}</tbody>
   </table>
-  <form method="POST" action="/admin/members/recheck"><button type="submit">Re-check now</button></form>
+  <form method="POST" action="/admin/members/recheck">${keep}<button type="submit">Re-check now</button></form>
 </body></html>`);
 });
 
 app.post('/admin/members/recheck', requireAdminAuth, async (req, res) => {
   await refreshHealth();
-  res.redirect('/admin');
+  res.redirect(`/admin?factory=${parseFactory(req.body.factory) || 'good'}`);
 });
 
 app.post('/admin/submissions/delete', requireAdminAuth, (req, res) => {
@@ -389,7 +425,7 @@ app.post('/admin/submissions/delete', requireAdminAuth, (req, res) => {
   }
   submissions.splice(index, 1);
   saveSubmissions(submissions);
-  res.redirect('/admin');
+  res.redirect(`/admin?factory=${parseFactory(req.body.factory) || 'good'}`);
 });
 
 // --- Serve index for all other routes (SPA-style) ---
