@@ -2,8 +2,8 @@ import express from 'express';
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
-import { timingSafeEqual } from 'crypto';
 import { isPublicMemberUrl, publicMembers, NOT_PUBLIC_ERROR } from './member-url.js';
+import { secretMatches, rateLimiter, clientIp, resolvesPublic } from './guard.js';
 import { factoryOf, parseFactory, otherFactory, factoriesOf } from './factory.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -84,10 +84,18 @@ function saveHealth(health) {
   writeFileSync(join(DATA_DIR, 'health.json'), JSON.stringify(health, null, 2));
 }
 
+// Redirects are not followed: a redirect answer means the site is up, and
+// following it could lead the check anywhere, including back inside the server.
+// The hostname must resolve to public addresses only, for the same reason.
 async function checkUrl(url) {
   const at = new Date().toISOString();
+  let host;
+  try { host = new URL(url).hostname.replace(/^\[|\]$/g, ''); } catch { host = ''; }
+  if (!(await resolvesPublic(host))) {
+    return { ok: false, status: 0, error: 'does not resolve to a public address', checkedAt: at };
+  }
   const opts = {
-    redirect: 'follow',
+    redirect: 'manual',
     signal: AbortSignal.timeout(10000),
     headers: { 'User-Agent': 'webring-healthcheck' },
   };
@@ -140,18 +148,23 @@ function escapeHtml(str) {
   }[c]));
 }
 
+// Ten wrong passwords from one address in fifteen minutes locks that address
+// out of both admin doors until the window passes.
+const authFailures = rateLimiter({ max: 10, windowMs: 15 * 60 * 1000 });
+
 function requireAdminAuth(req, res, next) {
   if (!ADMIN_PASSWORD) {
     return res.status(503).send('Admin page is not configured (ADMIN_PASSWORD not set).');
   }
+  const ip = clientIp(req);
+  if (authFailures.blocked(ip)) return res.status(429).send('Too many failed attempts. Try again later.');
   const header = req.headers.authorization || '';
   const [scheme, encoded] = header.split(' ');
   const decoded = encoded ? Buffer.from(encoded, 'base64').toString('utf8') : '';
   const password = decoded.includes(':') ? decoded.slice(decoded.indexOf(':') + 1) : decoded;
-  const a = Buffer.from(password);
-  const b = Buffer.from(ADMIN_PASSWORD);
-  const match = scheme === 'Basic' && a.length === b.length && timingSafeEqual(a, b);
-  if (!match) {
+  if (scheme !== 'Basic' || !secretMatches(password, ADMIN_PASSWORD)) {
+    // A browser's first request carries no credentials; only a wrong guess counts.
+    if (header) authFailures.hit(ip);
     res.setHeader('WWW-Authenticate', 'Basic realm="Webring Admin"');
     return res.status(401).send('Authentication required.');
   }
@@ -164,9 +177,10 @@ function requireAdminSecret(req, res, next) {
   if (!ADMIN_PASSWORD) {
     return res.status(503).json({ error: 'Sync is not configured (ADMIN_PASSWORD not set).' });
   }
-  const a = Buffer.from(String(req.headers['x-admin-secret'] || ''));
-  const b = Buffer.from(ADMIN_PASSWORD);
-  if (a.length !== b.length || !timingSafeEqual(a, b)) {
+  const ip = clientIp(req);
+  if (authFailures.blocked(ip)) return res.status(429).json({ error: 'Too many failed attempts. Try again later.' });
+  if (!secretMatches(req.headers['x-admin-secret'], ADMIN_PASSWORD)) {
+    authFailures.hit(ip);
     return res.status(401).json({ error: 'Invalid admin secret.' });
   }
   next();
@@ -244,15 +258,27 @@ app.get('/api/members/all', (req, res) => {
 
 // --- Join / submission ---
 
+// Five submissions per address per hour, and never more than a page of
+// pending ones, so the review queue stays something a person can read.
+const submitHits = rateLimiter({ max: 5, windowMs: 60 * 60 * 1000 });
+const MAX_PENDING = 100;
+
 app.post('/api/submit', (req, res) => {
   const ring = loadRing();
   if (!ring.join?.enabled) {
     return res.status(403).json({ error: 'Submissions are not enabled for this ring.' });
   }
 
-  const { name, url, description, contact } = req.body;
-  if (!name || !url) {
+  if (submitHits.hit(clientIp(req))) {
+    return res.status(429).json({ error: 'Too many submissions. Try again later.' });
+  }
+
+  const { name, url, description = '', contact = '' } = req.body || {};
+  if (typeof name !== 'string' || typeof url !== 'string' || !name.trim() || !url.trim()) {
     return res.status(400).json({ error: 'Name and URL are required.' });
+  }
+  if (typeof description !== 'string' || typeof contact !== 'string') {
+    return res.status(400).json({ error: 'Description and contact must be text.' });
   }
 
   let parsedUrl;
@@ -266,6 +292,9 @@ app.post('/api/submit', (req, res) => {
   }
 
   const submissions = loadSubmissions();
+  if (submissions.length >= MAX_PENDING) {
+    return res.status(429).json({ error: 'The review queue is full. Try again later.' });
+  }
   const members = loadMembers();
   const allUrls = [...members, ...submissions].map(s => normalizeUrl(s.url));
 
@@ -289,7 +318,7 @@ app.post('/api/submit', (req, res) => {
 
 app.post('/api/members/sync', requireAdminSecret, (req, res) => {
   const { name, url, description, remove, factory } = req.body || {};
-  if (!url) return res.status(400).json({ error: 'url is required.' });
+  if (typeof url !== 'string' || !url) return res.status(400).json({ error: 'url is required.' });
 
   let parsedUrl;
   try {
@@ -340,6 +369,27 @@ app.post('/api/members/sync', requireAdminSecret, (req, res) => {
 
 // --- Admin: view pending submissions ---
 
+// The admin page holds submitters' contact details and buttons that change
+// state: never cache it, never let another site frame it, and refuse form
+// posts that another site's page sends with the browser's saved credentials.
+app.use('/admin', (req, res, next) => {
+  res.set({
+    'Cache-Control': 'no-store',
+    'X-Frame-Options': 'DENY',
+    'Content-Security-Policy': "frame-ancestors 'none'",
+  });
+  if (req.method === 'POST') {
+    const site = req.get('sec-fetch-site');
+    const origin = req.get('origin');
+    let sameHost = true;
+    if (origin) { try { sameHost = new URL(origin).host === req.get('host'); } catch { sameHost = false; } }
+    if ((site && site !== 'same-origin' && site !== 'none') || !sameHost) {
+      return res.status(403).send('Cross-site request refused.');
+    }
+  }
+  next();
+});
+
 app.get('/admin', requireAdminAuth, (req, res) => {
   const submissions = loadSubmissions();
   const health = loadHealth();
@@ -362,7 +412,7 @@ app.get('/admin', requireAdminAuth, (req, res) => {
       <td>${escapeHtml(h?.checkedAt || '—')}</td>
     </tr>`;
   }).join('') || '<tr><td colspan="4">No members yet.</td></tr>';
-  const rows = submissions.map((s, i) => `
+  const rows = submissions.map((s) => `
     <tr>
       <td>${escapeHtml(s.name)}</td>
       <td><a href="${escapeHtml(s.url)}" target="_blank" rel="noopener">${escapeHtml(s.url)}</a></td>
@@ -371,7 +421,7 @@ app.get('/admin', requireAdminAuth, (req, res) => {
       <td>${escapeHtml(s.submittedAt)}</td>
       <td>
         <form method="POST" action="/admin/submissions/delete" onsubmit="return confirm('Delete this submission?')">
-          <input type="hidden" name="index" value="${i}">
+          <input type="hidden" name="url" value="${escapeHtml(s.url)}">
           ${keep}
           <button type="submit">Delete</button>
         </form>
@@ -417,14 +467,15 @@ app.post('/admin/members/recheck', requireAdminAuth, async (req, res) => {
   res.redirect(`/admin?factory=${parseFactory(req.body?.factory) || 'good'}`);
 });
 
+// By URL, not position: submissions are unique by URL, and a stale tab or a
+// double click must never take out the row that slid into an old index.
 app.post('/admin/submissions/delete', requireAdminAuth, (req, res) => {
   const submissions = loadSubmissions();
-  const index = parseInt(req.body?.index, 10);
-  if (Number.isNaN(index) || index < 0 || index >= submissions.length) {
-    return res.status(400).send('Invalid index.');
+  const index = submissions.findIndex(s => s.url === req.body?.url);
+  if (index !== -1) {
+    submissions.splice(index, 1);
+    saveSubmissions(submissions);
   }
-  submissions.splice(index, 1);
-  saveSubmissions(submissions);
   res.redirect(`/admin?factory=${parseFactory(req.body?.factory) || 'good'}`);
 });
 
