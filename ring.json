@@ -10,5 +10,15 @@
     "accent": "#6366f1",
     "background": "rgba(255, 255, 255, 0.9)",
     "text": "#0f172a"
+  },
+  "factories": {
+    "good": {
+      "name": "Good Idea Factory",
+      "description": ""
+    },
+    "bad": {
+      "name": "Bad Idea Factory",
+      "description": ""
+    }
   }
 }

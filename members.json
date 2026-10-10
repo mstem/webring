@@ -5,18 +5,40 @@
     "description": "Delivers a morning briefing every day, plus weekly personal and foundation summaries."
   },
   {
-    "name": "fridge",
-    "url": "https://fridge.mindshine.io",
-    "description": "Keeps track of what's in the fridge — scan a receipt to log items, get a nudge before anything expires."
-  },
-  {
-    "name": "mission-command",
-    "url": "https://command.mindshine.io",
-    "description": "A live dashboard for every coding project on one machine — activity, git health, and security in one view."
-  },
-  {
     "name": "social-pipeline",
     "url": "https://github.com/mstem/social-pipeline",
     "description": "Monorepo managing concurrent development and builds for a social media backend and frontend application."
+  },
+  {
+    "name": "behind-the-art",
+    "url": "https://cardinal.mindshine.io",
+    "description": "Finds and verifies the most authoritative long-form account of how any creative work was made, building a searchable public gallery."
+  },
+  {
+    "name": "bus-sign",
+    "url": "https://wholesome-dedication-production-4b87.up.railway.app",
+    "description": "Displays real-time bus arrival information from Portuguese transit APIs on a web interface."
+  },
+  {
+    "name": "emoji-compass",
+    "url": "https://emojicompass.com/",
+    "description": "An interactive web app that answers questions with random emoji combinations, inspired by the alethiometer from His Dark Materials.",
+    "factory": "bad"
+  },
+  {
+    "name": "pet-rent",
+    "url": "https://mstem.github.io/pet-rent/",
+    "description": "Pet-rent connects landlords and tenants to facilitate pet-friendly rental housing with transparent policies and fees."
+  },
+  {
+    "name": "skill-tree",
+    "url": "https://skilltrail.mindshine.io",
+    "description": "Skill-tree is a gamified learning platform with a backend API and nutrition integration via Cronometer for tracking user progress and health data."
+  },
+  {
+    "name": "german-word-for",
+    "url": "https://germanfor.mindshine.io",
+    "description": "Describe a concept in English and get a long German compound noun for it, checked against a 94,730-entry dictionary before it reaches the page.",
+    "factory": "bad"
   }
 ]

@@ -49,7 +49,7 @@ Set the `PORT` environment variable if needed. Start command: `npm start`.
 }
 ```
 
-Set `join.enabled` to `false` to hide the "Add your project" link from the widget footer and disable the submission form.
+Set `join.enabled` to `false` to disable the submission form and hide the join section on the ring homepage. The widget never carries a join link.
 
 **`members.json`**
 
@@ -62,6 +62,21 @@ Set `join.enabled` to `false` to hide the "Add your project" link from the widge
   }
 ]
 ```
+
+### Good and Bad Idea Factories
+
+The ring is two sibling rings. Each member has an optional `"factory": "good"` or `"factory": "bad"` in `members.json`; leaving it out means good. Prev, next and random in a member's widget only walk members of the same factory, and the widget bar wears that factory's name and colours (dark for bad).
+
+The homepage and `/admin` open on the Good Idea Factory in light mode, with a button that switches to the Bad Idea Factory in dark mode. A visitor who arrives from a member's widget lands in that member's factory. `?factory=bad` links straight to it. Names and descriptions come from the optional `factories` block in `ring.json`:
+
+```json
+"factories": {
+  "good": { "name": "Good Idea Factory", "description": "" },
+  "bad":  { "name": "Bad Idea Factory",  "description": "" }
+}
+```
+
+The sync endpoint takes an optional `factory` too. A re-sync without one leaves the member where it was.
 
 ## Add the widget to a member site
 

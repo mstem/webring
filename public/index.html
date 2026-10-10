@@ -4,262 +4,552 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Web Ring</title>
+  <meta name="description" content="A hand-kept ring of independently built projects. Walk from one to the next." />
+  <script>
+    // Set the dark palette before first paint when the link already names it.
+    if (new URLSearchParams(location.search).get('factory') === 'bad') document.documentElement.dataset.factory = 'bad';
+  </script>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
     :root {
+      --paper: #faf9f6;
+      --card: #ffffff;
+      --ink: #111111;
+      --muted: #6c6c66;
+      --rule: #dbdad3;
+      --rule-strong: #111111;
       --accent: #6366f1;
-      --accent-hover: #4f46e5;
-      --bg: #ffffff;
-      --surface: #f7f7fa;
-      --border: rgba(15, 23, 42, 0.08);
-      --text: #0f172a;
-      --muted: #64748b;
+
+      --sans: "Helvetica Neue", Helvetica, Arial, system-ui, -apple-system, sans-serif;
+      --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+
+      --gutter: clamp(20px, 5vw, 64px);
+      --max: 1120px;
     }
+
+    /* The Bad Idea Factory is the same ring after dark. */
+    :root[data-factory="bad"] {
+      --paper: #141413;
+      --card: #1c1c1a;
+      --ink: #ecebe6;
+      --muted: #9a998f;
+      --rule: #34342f;
+      --rule-strong: #ecebe6;
+      --accent: #8f92f7;
+    }
+
+    html { -webkit-text-size-adjust: 100%; }
 
     body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: system-ui, -apple-system, sans-serif;
-      font-size: 0.9rem;
-      line-height: 1.6;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
+      background: var(--paper);
+      color: var(--ink);
+      font-family: var(--sans);
+      font-size: 15px;
+      line-height: 1.55;
+      font-weight: 400;
+      -webkit-font-smoothing: antialiased;
     }
 
-    header {
-      padding: 3.5rem 2rem 2rem;
-      text-align: center;
-      border-bottom: 1px solid var(--border);
-    }
-    header h1 { font-size: 1.7rem; font-weight: 700; letter-spacing: -0.02em; }
-    header p { color: var(--muted); margin-top: 0.4rem; font-size: 0.85rem; }
+    a { color: inherit; }
 
-    main {
-      max-width: 680px;
+    .wrap {
+      max-width: var(--max);
       margin: 0 auto;
-      padding: 2.5rem 1.5rem;
-      flex: 1;
-      width: 100%;
+      padding: 0 var(--gutter);
     }
 
-    section { margin-bottom: 2.5rem; }
-    section h2 {
-      font-size: 0.7rem;
+    /* ---------- Masthead ---------- */
+
+    .masthead { padding: clamp(56px, 11vw, 130px) 0 0; }
+
+    .eyebrow {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.18em;
       text-transform: uppercase;
-      letter-spacing: 0.12em;
       color: var(--muted);
-      margin-bottom: 1rem;
-    }
-
-    /* Member list */
-    #members-list { list-style: none; display: flex; flex-direction: column; gap: 0.6rem; }
-    #members-list li {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 0.75rem 1rem;
       display: flex;
-      align-items: baseline;
-      gap: 0.75rem;
+      align-items: center;
+      gap: 12px;
     }
-    #members-list a { color: var(--accent); text-decoration: none; font-weight: 500; }
-    #members-list a:hover { text-decoration: underline; }
-    #members-list .desc { color: var(--muted); font-size: 0.8rem; }
+    .factory-switch {
+      order: 2;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: none;
+      border: 1px solid var(--rule);
+      border-radius: 4px;
+      color: var(--ink);
+      font: inherit;
+      padding: 6px 10px;
+      cursor: pointer;
+      transition: border-color 120ms linear;
+    }
+    .factory-switch:hover { border-color: var(--ink); }
+    .factory-switch svg { width: 14px; height: 14px; flex: none; }
+    .eyebrow::after {
+      content: "";
+      flex: 1;
+      height: 1px;
+      background: var(--rule);
+    }
 
-    /* Embed snippet */
+    h1 {
+      font-size: clamp(2.7rem, 8.5vw, 5.6rem);
+      font-weight: 600;
+      letter-spacing: -0.035em;
+      line-height: 0.94;
+      margin: clamp(20px, 4vw, 40px) 0 0;
+      max-width: 14ch;
+    }
+
+    .lede {
+      margin-top: clamp(20px, 3vw, 32px);
+      font-size: clamp(1rem, 1.6vw, 1.22rem);
+      line-height: 1.5;
+      max-width: 46ch;
+      color: var(--ink);
+    }
+
+    .masthead-meta {
+      margin-top: clamp(36px, 6vw, 64px);
+      border-top: 2px solid var(--rule-strong);
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+    .masthead-meta div {
+      padding: 14px 16px 18px 0;
+      border-right: 1px solid var(--rule);
+    }
+    .masthead-meta div:last-child { border-right: 0; }
+    .masthead-meta dt {
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .masthead-meta dd {
+      margin-top: 6px;
+      font-size: clamp(1.1rem, 2.4vw, 1.6rem);
+      letter-spacing: -0.02em;
+    }
+    .masthead-meta dd small {
+      font-size: 13px;
+      letter-spacing: 0;
+      color: var(--muted);
+    }
+
+    /* ---------- Sections ---------- */
+
+    section { padding: clamp(56px, 9vw, 104px) 0 0; }
+
+    .section-head {
+      display: grid;
+      grid-template-columns: 7rem 1fr;
+      gap: 0 24px;
+      border-top: 1px solid var(--rule-strong);
+      padding-top: 14px;
+    }
+    .section-num {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.16em;
+      color: var(--accent);
+      font-variant-numeric: tabular-nums;
+    }
+    .section-title {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.18em;
+      text-transform: uppercase;
+    }
+    .section-note {
+      grid-column: 2;
+      margin-top: 10px;
+      color: var(--muted);
+      max-width: 54ch;
+      font-size: 14px;
+    }
+
+    /* ---------- Index of members ---------- */
+
+    .index { margin-top: clamp(28px, 5vw, 48px); }
+
+    .row {
+      display: grid;
+      grid-template-columns: 7rem minmax(0, 15rem) minmax(0, 1fr) auto;
+      gap: 0 24px;
+      align-items: baseline;
+      padding: 18px 0;
+      border-top: 1px solid var(--rule);
+      text-decoration: none;
+      transition: background-color 120ms linear, padding-left 120ms ease-out;
+    }
+    .row:last-child { border-bottom: 1px solid var(--rule); }
+    .row:hover, .row:focus-visible {
+      background: var(--card);
+      padding-left: 10px;
+      outline: none;
+    }
+
+    .row-num {
+      font-family: var(--mono);
+      font-size: 12px;
+      color: var(--muted);
+      font-variant-numeric: tabular-nums;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .swatch {
+      width: 9px;
+      height: 9px;
+      flex: none;
+      background: var(--accent);
+    }
+    .row-name {
+      font-size: clamp(1.05rem, 2vw, 1.35rem);
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+    .row:hover .row-name { text-decoration: underline; text-underline-offset: 3px; }
+    .row-desc { color: var(--muted); font-size: 14px; }
+    .row-host {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      white-space: nowrap;
+      opacity: 0;
+      transition: opacity 120ms linear;
+    }
+    .row:hover .row-host { opacity: 1; }
+    .row-empty { padding: 24px 0; color: var(--muted); border-top: 1px solid var(--rule); }
+
+    /* ---------- Walk the ring ---------- */
+
+    .walk {
+      margin-top: clamp(28px, 5vw, 48px);
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      border-top: 1px solid var(--rule);
+    }
+    .walk div {
+      padding: 22px 20px 26px 0;
+      border-right: 1px solid var(--rule);
+    }
+    .walk div:last-child { border-right: 0; }
+    .walk .glyph {
+      font-family: var(--mono);
+      font-size: 26px;
+      line-height: 1;
+      color: var(--accent);
+    }
+    .walk h3 {
+      margin-top: 14px;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+    .walk p { margin-top: 6px; color: var(--muted); font-size: 14px; max-width: 30ch; }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 32px;
+      background: var(--ink);
+      color: var(--paper);
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+      padding: 14px 22px;
+      border: 0;
+      border-radius: 2px;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background-color 120ms linear;
+    }
+    .btn:hover { background: var(--accent); }
+    .btn:disabled { opacity: 0.55; cursor: default; }
+    .btn .arrow { font-family: var(--mono); }
+
+    /* ---------- Embed ---------- */
+
+    .embed {
+      margin-top: clamp(28px, 5vw, 48px);
+      display: grid;
+      grid-template-columns: 7rem 1fr;
+      gap: 0 24px;
+    }
+    .embed-body { grid-column: 2; }
     .snippet {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 0.9rem 1rem;
-      font-family: ui-monospace, monospace;
-      font-size: 0.78rem;
-      color: var(--accent-hover);
+      background: var(--card);
+      border: 1px solid var(--rule);
+      border-left: 3px solid var(--accent);
+      padding: 18px 20px;
+      font-family: var(--mono);
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--ink);
       white-space: pre-wrap;
       word-break: break-all;
-      cursor: pointer;
-      position: relative;
+      border-radius: 2px;
     }
-    .snippet::after {
-      content: 'Click to copy';
-      position: absolute;
-      top: 0.5rem;
-      right: 0.75rem;
-      font-family: system-ui, sans-serif;
-      font-size: 0.68rem;
-      color: var(--muted);
+    .snippet-actions {
+      margin-top: 12px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
     }
-    .snippet.copied::after { content: 'Copied!'; color: var(--accent); }
-
-    /* Join form */
-    form { display: flex; flex-direction: column; gap: 0.75rem; }
-    label { font-size: 0.78rem; color: var(--muted); display: flex; flex-direction: column; gap: 0.3rem; }
-    input, textarea {
-      background: #ffffff;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 0.55rem 0.75rem;
-      color: var(--text);
+    .copy {
       font-family: inherit;
-      font-size: 0.85rem;
-      outline: none;
-      transition: border-color 0.15s;
-    }
-    input:focus, textarea:focus { border-color: var(--accent); }
-    textarea { resize: vertical; min-height: 70px; }
-    button[type=submit] {
-      align-self: flex-start;
-      background: var(--accent);
-      color: #ffffff;
-      border: none;
-      border-radius: 6px;
-      padding: 0.55rem 1.2rem;
+      font-size: 11px;
       font-weight: 600;
-      font-size: 0.82rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      background: none;
+      border: 1px solid var(--rule-strong);
+      border-radius: 2px;
+      padding: 8px 14px;
       cursor: pointer;
-      transition: background 0.15s;
+      color: var(--ink);
+      transition: background-color 120ms linear, color 120ms linear;
     }
-    button[type=submit]:hover { background: var(--accent-hover); }
-    .form-message { font-size: 0.82rem; padding: 0.6rem 0.9rem; border-radius: 6px; }
-    .form-message.ok { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
-    .form-message.err { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+    .copy:hover { background: var(--ink); color: var(--paper); }
+    .copy.done { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .embed-alt { font-size: 13px; color: var(--muted); max-width: 52ch; }
+    code { font-family: var(--mono); font-size: 0.92em; color: var(--accent); }
+
+    /* ---------- Footer ---------- */
 
     footer {
-      text-align: center;
-      padding: 1.5rem;
+      margin-top: clamp(64px, 10vw, 120px);
+      border-top: 2px solid var(--rule-strong);
+      padding: 20px 0 40px;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px 28px;
+      justify-content: space-between;
+      font-size: 12px;
       color: var(--muted);
-      font-size: 0.72rem;
-      border-top: 1px solid var(--border);
     }
-    footer a { color: var(--muted); text-decoration: underline; }
+    footer a { text-decoration: none; border-bottom: 1px solid var(--rule); }
+    footer a:hover { color: var(--ink); border-bottom-color: var(--ink); }
 
     .hidden { display: none !important; }
+
+    @media (max-width: 720px) {
+      .masthead-meta { grid-template-columns: 1fr 1fr; }
+      .masthead-meta div:nth-child(2) { border-right: 0; }
+      .masthead-meta div:last-child { grid-column: 1 / -1; border-top: 1px solid var(--rule); }
+      .section-head, .embed { grid-template-columns: 1fr; }
+      .section-head .section-num { margin-bottom: 4px; }
+      .section-note, .embed-body { grid-column: 1; }
+      .row { grid-template-columns: 1fr; gap: 6px; padding: 20px 0; }
+      .row-host { opacity: 1; }
+      .walk { grid-template-columns: 1fr; }
+      .walk div { border-right: 0; border-bottom: 1px solid var(--rule); }
+      .walk div:last-child { border-bottom: 0; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      * { transition: none !important; }
+    }
   </style>
 </head>
 <body>
-  <header>
-    <h1 id="ring-name">Web Ring</h1>
-    <p id="ring-desc"></p>
-  </header>
+  <div class="wrap">
+    <header class="masthead">
+      <div class="eyebrow">
+        <span id="eyebrow">Web ring</span>
+        <button class="factory-switch" id="factory-switch" type="button"></button>
+      </div>
+      <h1 id="ring-name">Web Ring</h1>
+      <p class="lede" id="ring-desc">A hand-kept circle of independently built projects. Every member carries a small bar linking to its neighbours, so one site leads to the next without a search box in between.</p>
 
-  <main>
-    <!-- Member directory -->
-    <section>
-      <h2>Members (<span id="member-count">…</span>)</h2>
-      <ul id="members-list"><li style="color:var(--muted)">Loading…</li></ul>
-    </section>
+      <dl class="masthead-meta">
+        <div>
+          <dt>Members</dt>
+          <dd id="member-count">—</dd>
+        </div>
+        <div>
+          <dt>Order</dt>
+          <dd>Fixed <small>&nbsp;/ kept by hand</small></dd>
+        </div>
+        <div>
+          <dt>To join</dt>
+          <dd>One line <small>&nbsp;/ of script</small></dd>
+        </div>
+      </dl>
+    </header>
 
-    <!-- Embed snippet -->
-    <section>
-      <h2>Add the widget to your site</h2>
-      <p style="color:var(--muted);font-size:0.82rem;margin-bottom:0.75rem">
-        Paste this before <code style="color:var(--accent)">&lt;/body&gt;</code>. A minimal footer bar appears automatically.
-        Or place <code style="color:var(--accent)">&lt;div id="webring-widget"&gt;&lt;/div&gt;</code> wherever you want it inline.
-      </p>
-      <div class="snippet" id="snippet" role="button" tabindex="0" title="Click to copy"></div>
-    </section>
+    <main>
+      <!-- 01 — Index -->
+      <section>
+        <div class="section-head">
+          <span class="section-num">01</span>
+          <h2 class="section-title">The index</h2>
+          <p class="section-note">Every site currently answering. A member whose site stops responding is held back from the ring until it returns.</p>
+        </div>
+        <div class="index" id="members-list">
+          <div class="row-empty">Loading the ring…</div>
+        </div>
+      </section>
 
-    <!-- Join form -->
-    <section id="join-section" class="hidden">
-      <h2>Submit your project</h2>
-      <p style="color:var(--muted);font-size:0.82rem;margin-bottom:1rem">
-        All submissions are reviewed before being added. You can also open a pull request to <code style="color:var(--accent)">members.json</code> directly.
-      </p>
-      <form id="join-form">
-        <label>Project name *
-          <input name="name" required placeholder="Your project name" maxlength="100" />
-        </label>
-        <label>URL *
-          <input name="url" type="url" required placeholder="https://your-project.example.com" />
-        </label>
-        <label>Short description
-          <textarea name="description" placeholder="What does your project do?" maxlength="300"></textarea>
-        </label>
-        <label>Contact (email or GitHub handle — not made public)
-          <input name="contact" placeholder="you@example.com or @you" maxlength="200" />
-        </label>
-        <button type="submit">Submit project</button>
-        <div id="form-message" class="hidden form-message"></div>
-      </form>
-    </section>
-  </main>
+      <!-- 02 — Walk -->
+      <section>
+        <div class="section-head">
+          <span class="section-num">02</span>
+          <h2 class="section-title">Walking the ring</h2>
+          <p class="section-note">The bar at the foot of every member site holds three controls. They move you around the circle in a fixed order, so the ring can be walked end to end and back to where you started.</p>
+        </div>
+        <div class="walk">
+          <div>
+            <p class="glyph">&#8592;</p>
+            <h3>Previous</h3>
+            <p>Back one place in the order.</p>
+          </div>
+          <div>
+            <p class="glyph">&#8594;</p>
+            <h3>Next</h3>
+            <p>Forward one place, wrapping around at the end.</p>
+          </div>
+          <div>
+            <p class="glyph">?</p>
+            <h3>Random</h3>
+            <p>Any member other than the one you are on.</p>
+          </div>
+        </div>
+        <a class="btn" id="random" href="/random"><span class="arrow">&#8594;</span> Open a member at random</a>
+      </section>
 
-  <footer>
-    Powered by <a href="https://github.com/mstem/webring" target="_blank">webring</a>
-  </footer>
+      <!-- 03 — Embed -->
+      <section>
+        <div class="section-head">
+          <span class="section-num">03</span>
+          <h2 class="section-title">Carry the ring</h2>
+          <p class="section-note">Paste this before the closing body tag. The bar appears on its own, fixed to the foot of the page.</p>
+        </div>
+        <div class="embed">
+          <div class="embed-body">
+            <div class="snippet" id="snippet"></div>
+            <div class="snippet-actions">
+              <button class="copy" id="copy" type="button">Copy</button>
+              <p class="embed-alt">To place it inline instead, put <code>&lt;div id="webring-widget"&gt;&lt;/div&gt;</code> anywhere in your markup and the script will use it.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <footer>
+      <span id="footer-name">Web ring</span>
+      <span>Built and kept by hand. <a href="https://github.com/mstem/webring" target="_blank" rel="noopener">Source</a></span>
+    </footer>
+  </div>
 
   <script>
     const RING_URL = location.origin;
 
-    async function init() {
-      const [ring, members] = await Promise.all([
-        fetch('/api/ring').then(r => r.json()),
-        fetch('/api/members').then(r => r.json()),
-      ]);
+    // One mark per member, so the index reads as a set of distinct places.
+    const MARKS = ['#e2483d', '#2b5fd9', '#e8b400', '#127a52', '#7a4bd0', '#d2622a', '#0f8ba8', '#b0316e'];
 
-      // Header
-      document.title = ring.name + ' Web Ring';
-      document.getElementById('ring-name').textContent = ring.name;
-      document.getElementById('ring-desc').textContent = ring.description || '';
+    const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => (
+      { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+    ));
 
-      // Apply accent color from ring theme
-      if (ring.theme?.accent) {
-        document.documentElement.style.setProperty('--accent', ring.theme.accent);
-      }
+    const host = (url) => {
+      try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return ''; }
+    };
 
-      // Member list
+    // Sun for the good (light) factory, moon for the bad (dark) one.
+    const ICONS = {
+      good: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>',
+      bad: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>',
+    };
+    const other = (f) => (f === 'bad' ? 'good' : 'bad');
+
+    let ring;
+    let factory = 'good';
+
+    async function show(next) {
+      factory = next;
+      const root = document.documentElement;
+      root.dataset.factory = factory;
+      // The configured accent belongs to the light page; the dark one keeps its own.
+      if (factory === 'good' && ring.theme?.accent) root.style.setProperty('--accent', ring.theme.accent);
+      else root.style.removeProperty('--accent');
+
+      const name = ring.factories[factory].name;
+      document.title = `${name} · ${ring.name}`;
+      document.getElementById('ring-name').textContent = name;
+      const desc = ring.factories[factory].description || ring.description;
+      if (desc) document.getElementById('ring-desc').textContent = desc;
+
+      const sw = document.getElementById('factory-switch');
+      sw.innerHTML = `${ICONS[other(factory)]}<span>${esc(ring.factories[other(factory)].name)}</span>`;
+      document.getElementById('random').href = `/random?factory=${factory}`;
+
+      const url = new URL(location.href);
+      url.searchParams.delete('from');
+      url.searchParams.set('factory', factory);
+      history.replaceState(null, '', url);
+
+      const members = await fetch(`/api/members?factory=${factory}`).then(r => r.json());
+      if (factory !== next) return; // a later toggle won the race
+      renderMembers(members);
+    }
+
+    function renderMembers(members) {
+      document.getElementById('member-count').textContent = String(members.length).padStart(2, '0');
+
       const list = document.getElementById('members-list');
-      document.getElementById('member-count').textContent = members.length;
       list.innerHTML = members.length
-        ? members.map(m => `
-            <li>
-              <a href="${m.url}" target="_blank" rel="noopener">${m.name}</a>
-              ${m.description ? `<span class="desc">— ${m.description}</span>` : ''}
-            </li>`).join('')
-        : '<li style="color:var(--muted)">No members yet.</li>';
+        ? members.map((m, i) => `
+            <a class="row" href="${esc(m.url)}" target="_blank" rel="noopener">
+              <span class="row-num">
+                <span class="swatch" style="background:${MARKS[i % MARKS.length]}"></span>
+                ${String(i + 1).padStart(2, '0')}
+              </span>
+              <span class="row-name">${esc(m.name)}</span>
+              <span class="row-desc">${esc(m.description || '')}</span>
+              <span class="row-host">${esc(host(m.url))}</span>
+            </a>`).join('')
+        : '<div class="row-empty">No members answering right now.</div>';
+    }
 
-      // Embed snippet
-      const snippet = `<script src="${RING_URL}/widget.js"><\/script>`;
-      const el = document.getElementById('snippet');
-      el.textContent = snippet;
-      el.addEventListener('click', () => {
+    async function init() {
+      // Open in the mode of the site the visitor came from, if they came from one.
+      const params = new URLSearchParams(location.search);
+      const from = params.get('from');
+      ring = await fetch(`/api/ring${from ? `?from=${encodeURIComponent(from)}` : ''}`).then(r => r.json());
+      const asked = params.get('factory');
+      const start = (asked === 'good' || asked === 'bad') ? asked : ring.factory;
+
+      document.getElementById('eyebrow').textContent = ring.name;
+      document.getElementById('footer-name').textContent = ring.name;
+      document.getElementById('factory-switch').addEventListener('click', () => show(other(factory)));
+      await show(start);
+
+      const snippet = '<' + `script src="${RING_URL}/widget.js"></` + 'script>';
+      document.getElementById('snippet').textContent = snippet;
+
+      const copy = document.getElementById('copy');
+      copy.addEventListener('click', () => {
         navigator.clipboard.writeText(snippet).then(() => {
-          el.classList.add('copied');
-          setTimeout(() => el.classList.remove('copied'), 1800);
+          copy.textContent = 'Copied';
+          copy.classList.add('done');
+          setTimeout(() => { copy.textContent = 'Copy'; copy.classList.remove('done'); }, 1800);
         });
       });
 
-      // Join form
-      if (ring.join?.enabled) {
-        document.getElementById('join-section').classList.remove('hidden');
-        document.getElementById('join-form').addEventListener('submit', async (e) => {
-          e.preventDefault();
-          const msg = document.getElementById('form-message');
-          const btn = e.target.querySelector('button[type=submit]');
-          btn.disabled = true;
-          btn.textContent = 'Submitting…';
-          try {
-            const res = await fetch('/api/submit', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(Object.fromEntries(new FormData(e.target))),
-            });
-            const data = await res.json();
-            msg.className = 'form-message ' + (res.ok ? 'ok' : 'err');
-            msg.textContent = data.message || data.error;
-            msg.classList.remove('hidden');
-            if (res.ok) e.target.reset();
-          } catch {
-            msg.className = 'form-message err';
-            msg.textContent = 'Something went wrong. Please try again.';
-            msg.classList.remove('hidden');
-          }
-          btn.disabled = false;
-          btn.textContent = 'Submit project';
-        });
-      }
     }
 
     init().catch(console.error);

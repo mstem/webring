@@ -41,8 +41,14 @@
     #webring-widget a:hover { color: #0f172a; }
     #webring-widget .wring-name { color: rgba(15, 23, 42, 0.8); }
     #webring-widget .wring-sep { opacity: 0.3; user-select: none; }
-    #webring-widget .wring-join { opacity: 0.65; }
-    #webring-widget .wring-join:hover { opacity: 1; }
+    #webring-widget.wring-bad {
+      background: rgba(20, 20, 19, 0.9);
+      border-top-color: rgba(236, 235, 230, 0.12);
+      color: rgba(236, 235, 230, 0.6);
+    }
+    #webring-widget.wring-bad a { color: #8f92f7; }
+    #webring-widget.wring-bad a:hover { color: #ecebe6; }
+    #webring-widget.wring-bad .wring-name { color: rgba(236, 235, 230, 0.85); }
   `;
 
   function inject(ring) {
@@ -61,23 +67,22 @@
     }
     if (fixed) el.classList.add('wring-fixed');
 
-    const joinLink = ring.join?.enabled
-      ? `<span class="wring-sep">·</span>
-         <a class="wring-join" href="${RING_URL}/join">+ ${ring.join.label || 'Add your project'}</a>`
-      : '';
+    // The server says which factory this site belongs to; the bar wears its colours.
+    const factory = ring.factory === 'bad' ? 'bad' : 'good';
+    if (factory === 'bad') el.classList.add('wring-bad');
+    const label = ring.factories?.[factory]?.name || ring.name;
 
     el.innerHTML =
       `<a href="${RING_URL}/prev?from=${FROM}" title="Previous site">←</a>` +
       `<span class="wring-sep">|</span>` +
-      `<a class="wring-name" href="${RING_URL}" title="Browse the ring">${ring.name}</a>` +
+      `<a class="wring-name" href="${RING_URL}/?factory=${factory}" title="Browse the ring">${label}</a>` +
       `<span class="wring-sep">|</span>` +
       `<a href="${RING_URL}/next?from=${FROM}" title="Next site">→</a>` +
       `<span class="wring-sep">·</span>` +
-      `<a href="${RING_URL}/random?from=${FROM}" title="Random site">?</a>` +
-      joinLink;
+      `<a href="${RING_URL}/random?from=${FROM}" title="Random site">?</a>`;
   }
 
-  fetch(`${RING_URL}/api/ring`)
+  fetch(`${RING_URL}/api/ring?from=${FROM}`)
     .then(r => r.json())
     .then(inject)
     .catch(() => {
