@@ -77,7 +77,7 @@
     el.innerHTML =
       `<a href="${RING_URL}/prev?from=${FROM}" title="Previous site">←</a>` +
       `<span class="wring-sep">|</span>` +
-      `<a class="wring-name" href="${RING_URL}/?factory=${factory}" title="Browse the ring">${label}</a>` +
+      `<span class="wring-name">${label}</span>` +
       `<span class="wring-sep">|</span>` +
       `<a href="${RING_URL}/next?from=${FROM}" title="Next site">→</a>` +
       `<span class="wring-sep">·</span>` +
