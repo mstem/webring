@@ -49,7 +49,7 @@ Set the `PORT` environment variable if needed. Start command: `npm start`.
 }
 ```
 
-Set `join.enabled` to `false` to hide the "Add your project" link from the widget footer and disable the submission form.
+Set `join.enabled` to `false` to disable the submission form and hide the join section on the ring homepage. The widget never carries a join link.
 
 **`members.json`**
 

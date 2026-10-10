@@ -41,8 +41,6 @@
     #webring-widget a:hover { color: #0f172a; }
     #webring-widget .wring-name { color: rgba(15, 23, 42, 0.8); }
     #webring-widget .wring-sep { opacity: 0.3; user-select: none; }
-    #webring-widget .wring-join { opacity: 0.65; }
-    #webring-widget .wring-join:hover { opacity: 1; }
   `;
 
   function inject(ring) {
@@ -61,11 +59,6 @@
     }
     if (fixed) el.classList.add('wring-fixed');
 
-    const joinLink = ring.join?.enabled
-      ? `<span class="wring-sep">·</span>
-         <a class="wring-join" href="${RING_URL}/join">+ ${ring.join.label || 'Add your project'}</a>`
-      : '';
-
     el.innerHTML =
       `<a href="${RING_URL}/prev?from=${FROM}" title="Previous site">←</a>` +
       `<span class="wring-sep">|</span>` +
@@ -73,8 +66,7 @@
       `<span class="wring-sep">|</span>` +
       `<a href="${RING_URL}/next?from=${FROM}" title="Next site">→</a>` +
       `<span class="wring-sep">·</span>` +
-      `<a href="${RING_URL}/random?from=${FROM}" title="Random site">?</a>` +
-      joinLink;
+      `<a href="${RING_URL}/random?from=${FROM}" title="Random site">?</a>`;
   }
 
   fetch(`${RING_URL}/api/ring`)

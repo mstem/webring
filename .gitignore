@@ -2,3 +2,4 @@ node_modules/
 submissions.json
 .fly/
 .env
+health.json
