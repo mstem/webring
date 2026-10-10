@@ -414,18 +414,18 @@ app.get('/admin', requireAdminAuth, (req, res) => {
 
 app.post('/admin/members/recheck', requireAdminAuth, async (req, res) => {
   await refreshHealth();
-  res.redirect(`/admin?factory=${parseFactory(req.body.factory) || 'good'}`);
+  res.redirect(`/admin?factory=${parseFactory(req.body?.factory) || 'good'}`);
 });
 
 app.post('/admin/submissions/delete', requireAdminAuth, (req, res) => {
   const submissions = loadSubmissions();
-  const index = parseInt(req.body.index, 10);
+  const index = parseInt(req.body?.index, 10);
   if (Number.isNaN(index) || index < 0 || index >= submissions.length) {
     return res.status(400).send('Invalid index.');
   }
   submissions.splice(index, 1);
   saveSubmissions(submissions);
-  res.redirect(`/admin?factory=${parseFactory(req.body.factory) || 'good'}`);
+  res.redirect(`/admin?factory=${parseFactory(req.body?.factory) || 'good'}`);
 });
 
 // --- Serve index for all other routes (SPA-style) ---

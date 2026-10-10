@@ -22,7 +22,8 @@
   {
     "name": "emoji-compass",
     "url": "https://emojicompass.com/",
-    "description": "An interactive web app that answers questions with random emoji combinations, inspired by the alethiometer from His Dark Materials."
+    "description": "An interactive web app that answers questions with random emoji combinations, inspired by the alethiometer from His Dark Materials.",
+    "factory": "bad"
   },
   {
     "name": "pet-rent",
@@ -37,6 +38,7 @@
   {
     "name": "german-word-for",
     "url": "https://germanfor.mindshine.io",
-    "description": "Describe a concept in English and get a long German compound noun for it, checked against a 94,730-entry dictionary before it reaches the page."
+    "description": "Describe a concept in English and get a long German compound noun for it, checked against a 94,730-entry dictionary before it reaches the page.",
+    "factory": "bad"
   }
 ]
