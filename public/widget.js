@@ -41,14 +41,16 @@
     #webring-widget a:hover { color: #0f172a; }
     #webring-widget .wring-name { color: rgba(15, 23, 42, 0.8); }
     #webring-widget .wring-sep { opacity: 0.3; user-select: none; }
-    #webring-widget.wring-bad {
+    /* :where() keeps the dark rules at the same weight as the defaults above,
+       so a member site that restyles the bar still wins. */
+    #webring-widget:where(.wring-bad) {
       background: rgba(20, 20, 19, 0.9);
       border-top-color: rgba(236, 235, 230, 0.12);
       color: rgba(236, 235, 230, 0.6);
     }
-    #webring-widget.wring-bad a { color: #8f92f7; }
-    #webring-widget.wring-bad a:hover { color: #ecebe6; }
-    #webring-widget.wring-bad .wring-name { color: rgba(236, 235, 230, 0.85); }
+    #webring-widget:where(.wring-bad) a { color: #8f92f7; }
+    #webring-widget:where(.wring-bad) a:hover { color: #ecebe6; }
+    #webring-widget:where(.wring-bad) .wring-name { color: rgba(236, 235, 230, 0.85); }
   `;
 
   function inject(ring) {
