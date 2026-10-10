@@ -79,9 +79,7 @@
       `<span class="wring-sep">|</span>` +
       `<span class="wring-name">${label}</span>` +
       `<span class="wring-sep">|</span>` +
-      `<a href="${RING_URL}/next?from=${FROM}" title="Next site">→</a>` +
-      `<span class="wring-sep">·</span>` +
-      `<a href="${RING_URL}/random?from=${FROM}" title="Random site">?</a>`;
+      `<a href="${RING_URL}/next?from=${FROM}" title="Next site">→</a>`;
   }
 
   fetch(`${RING_URL}/api/ring?from=${FROM}`)
