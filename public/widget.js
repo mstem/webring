@@ -39,8 +39,14 @@
       transition: color 0.15s;
     }
     #webring-widget a:hover { color: #0f172a; }
-    #webring-widget .wring-name { color: rgba(15, 23, 42, 0.8); }
-    #webring-widget .wring-logo { display: block; height: 24px; width: auto; }
+    #webring-widget .wring-name {
+      color: rgba(15, 23, 42, 0.8);
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      line-height: 1.25;
+    }
     #webring-widget .wring-sep { opacity: 0.3; user-select: none; }
     /* :where() keeps the dark rules at the same weight as the defaults above,
        so a member site that restyles the bar still wins. */
@@ -73,13 +79,9 @@
     // The server says which factory this site belongs to; the bar wears its colours.
     const factory = ring.factory === 'bad' ? 'bad' : 'good';
     if (factory === 'bad') el.classList.add('wring-bad');
-    const label = ring.factories?.[factory]?.name || ring.name;
-
-    // The Good Idea Factory shows its logo between the arrows; the Bad Idea
-    // Factory keeps its name as text.
-    const middle = factory === 'good'
-      ? `<img class="wring-logo" src="${RING_URL}/good-idea-factory.png" alt="${label}" title="${label}" width="18" height="24">`
-      : `<span class="wring-name">${label}</span>`;
+    // Both factories name themselves in words, with "webring" on the line below.
+    const name = ring.factories?.[factory]?.name || ring.name;
+    const middle = `<span class="wring-name"><span>${name}</span><span>webring</span></span>`;
 
     el.innerHTML =
       `<a href="${RING_URL}/prev?from=${FROM}" title="Previous site">←</a>` +
