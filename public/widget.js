@@ -45,9 +45,16 @@
       text-align: center;
       line-height: 1.25;
     }
-    /* Emoji glyphs run wider than their box at this size; spacing them keeps
-       the halo and horns clear of the factory. */
-    #webring-widget .wring-faces { display: inline-flex; gap: 0.3em; margin-left: 0.35em; }
+    /* Emoji glyphs draw wider than their box at small sizes, and member sites
+       set their own fonts. A fixed slot per emoji, in the emoji font, keeps the
+       halo and horns clear of the factory whatever the site's type. */
+    #webring-widget .wring-faces { display: inline-flex; margin-left: 0.2em; }
+    #webring-widget .wring-faces > span {
+      display: inline-block;
+      width: 1.5em;
+      text-align: center;
+      font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
+    }
     #webring-widget .wring-sep { opacity: 0.3; user-select: none; }
     #webring-widget .wring-mode {
       grid-column: 3;
