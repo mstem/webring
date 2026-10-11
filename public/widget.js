@@ -40,6 +40,7 @@
     }
     #webring-widget a:hover { color: #0f172a; }
     #webring-widget .wring-name { color: rgba(15, 23, 42, 0.8); }
+    #webring-widget .wring-logo { display: block; height: 24px; width: auto; }
     #webring-widget .wring-sep { opacity: 0.3; user-select: none; }
     /* :where() keeps the dark rules at the same weight as the defaults above,
        so a member site that restyles the bar still wins. */
@@ -74,10 +75,16 @@
     if (factory === 'bad') el.classList.add('wring-bad');
     const label = ring.factories?.[factory]?.name || ring.name;
 
+    // The Good Idea Factory shows its logo between the arrows; the Bad Idea
+    // Factory keeps its name as text.
+    const middle = factory === 'good'
+      ? `<img class="wring-logo" src="${RING_URL}/good-idea-factory.png" alt="${label}" title="${label}" width="18" height="24">`
+      : `<span class="wring-name">${label}</span>`;
+
     el.innerHTML =
       `<a href="${RING_URL}/prev?from=${FROM}" title="Previous site">←</a>` +
       `<span class="wring-sep">|</span>` +
-      `<span class="wring-name">${label}</span>` +
+      middle +
       `<span class="wring-sep">|</span>` +
       `<a href="${RING_URL}/next?from=${FROM}" title="Next site">→</a>`;
   }
