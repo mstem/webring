@@ -37,17 +37,17 @@
       transition: color 0.15s;
     }
     #webring-widget a:hover { color: #0f172a; }
-    /* Two justified lines of one width: the name sets it, and the letters of
-       "Webring", then the faces, spread out underneath to match. */
     #webring-widget .wring-name {
       color: rgba(15, 23, 42, 0.8);
-      display: inline-block;
+      display: inline-flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
       line-height: 1.25;
     }
-    #webring-widget .wring-name > span { display: block; text-align: justify; text-align-last: justify; }
-    #webring-widget .wring-name > .wring-word { display: flex; justify-content: space-between; }
-    #webring-widget .wring-faces { margin-left: 0.3em; }
-    #webring-widget .wring-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+    /* Emoji glyphs run wider than their box at this size; spacing them keeps
+       the halo and horns clear of the factory. */
+    #webring-widget .wring-faces { display: inline-flex; gap: 0.3em; margin-left: 0.35em; }
     #webring-widget .wring-sep { opacity: 0.3; user-select: none; }
     #webring-widget .wring-mode {
       grid-column: 3;
@@ -102,13 +102,12 @@
       el.classList.toggle('wring-bad', factory === 'bad');
       const name = ring.factories?.[factory]?.name || ring.name;
       const face = factory === 'bad' ? '😈' : '😇';
-      const word = [...'Webring'].map(c => `<span aria-hidden="true">${c}</span>`).join('');
       const q = `from=${FROM}&factory=${factory}`;
       el.innerHTML =
         `<span class="wring-nav">` +
           `<a href="${RING_URL}/prev?${q}" title="Previous site">←</a>` +
           `<span class="wring-sep">|</span>` +
-          `<span class="wring-name"><span>${name}</span><span class="wring-word"><span class="wring-sr">Webring</span>${word}<span class="wring-faces" aria-hidden="true">${face}🏭</span></span></span>` +
+          `<span class="wring-name"><span>${name}</span><span>Webring<span class="wring-faces" aria-hidden="true"><span>${face}</span><span>🏭</span></span></span></span>` +
           `<span class="wring-sep">|</span>` +
           `<a href="${RING_URL}/next?${q}" title="Next site">→</a>` +
         `</span>` +
