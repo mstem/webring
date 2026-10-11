@@ -21,7 +21,7 @@
       align-items: center;
       gap: 0.55rem;
       padding: 0.45rem 1rem;
-      background: rgba(255, 255, 255, 0.9);
+      background: rgba(255, 255, 255, 0.5);
       border-top: 1px solid rgba(15, 23, 42, 0.08);
       color: rgba(15, 23, 42, 0.6);
     }
@@ -78,7 +78,7 @@
     /* :where() keeps the dark rules at the same weight as the defaults above,
        so a member site that restyles the bar still wins. */
     #webring-widget:where(.wring-bad) {
-      background: rgba(20, 20, 19, 0.9);
+      background: rgba(20, 20, 19, 0.5);
       border-top-color: rgba(236, 235, 230, 0.12);
       color: rgba(236, 235, 230, 0.6);
     }
