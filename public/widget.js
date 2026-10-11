@@ -37,14 +37,15 @@
       transition: color 0.15s;
     }
     #webring-widget a:hover { color: #0f172a; }
+    /* Two justified lines of one width: the name sets it, and the letters of
+       "Webring" spread out underneath to match. */
     #webring-widget .wring-name {
       color: rgba(15, 23, 42, 0.8);
-      display: inline-flex;
-      flex-direction: column;
-      align-items: center;
-      text-align: center;
+      display: inline-block;
       line-height: 1.25;
     }
+    #webring-widget .wring-name > span { display: block; text-align: justify; text-align-last: justify; }
+    #webring-widget .wring-name > .wring-word { display: flex; justify-content: space-between; }
     #webring-widget .wring-sep { opacity: 0.3; user-select: none; }
     #webring-widget .wring-mode {
       grid-column: 3;
@@ -63,6 +64,7 @@
     @media (max-width: 480px) {
       #webring-widget { grid-template-columns: 1fr; justify-items: center; }
       #webring-widget .wring-nav, #webring-widget .wring-mode { grid-column: 1; justify-self: center; }
+      #webring-widget .wring-mode-word { display: none; }
     }
     /* :where() keeps the dark rules at the same weight as the defaults above,
        so a member site that restyles the bar still wins. */
@@ -97,16 +99,18 @@
     function render(factory) {
       el.classList.toggle('wring-bad', factory === 'bad');
       const name = ring.factories?.[factory]?.name || ring.name;
+      const face = factory === 'bad' ? '😈' : '😇';
+      const word = [...'Webring'].map(c => `<span aria-hidden="true">${c}</span>`).join('');
       const q = `from=${FROM}&factory=${factory}`;
       el.innerHTML =
         `<span class="wring-nav">` +
           `<a href="${RING_URL}/prev?${q}" title="Previous site">←</a>` +
           `<span class="wring-sep">|</span>` +
-          `<span class="wring-name"><span>${name}</span><span>webring</span></span>` +
+          `<span class="wring-name"><span>${face}🏭 ${name}</span><span class="wring-word" aria-label="Webring">${word}</span></span>` +
           `<span class="wring-sep">|</span>` +
           `<a href="${RING_URL}/next?${q}" title="Next site">→</a>` +
         `</span>` +
-        `<button type="button" class="wring-mode">${factory === 'bad' ? 'Light mode' : 'Dark mode'}</button>`;
+        `<button type="button" class="wring-mode">${factory === 'bad' ? 'Light' : 'Dark'}<span class="wring-mode-word"> mode</span></button>`;
       el.querySelector('.wring-mode').addEventListener('click', () => render(factory === 'bad' ? 'good' : 'bad'));
     }
 
