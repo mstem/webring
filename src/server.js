@@ -4,7 +4,7 @@ import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import { isPublicMemberUrl, publicMembers, NOT_PUBLIC_ERROR } from './member-url.js';
 import { secretMatches, rateLimiter, clientIp, resolvesPublic } from './guard.js';
-import { factoryOf, parseFactory, factoriesOf } from './factory.js';
+import { factoryOf, parseFactory, otherFactory, factoriesOf } from './factory.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
@@ -136,8 +136,11 @@ function reachableMembers(factory) {
   return loadMembers().filter(m => isReachable(m, health) && (!factory || factoryOf(m) === factory));
 }
 
-// The halo and the horns, as the switch between the two factories.
-const FACTORY_FACES = { good: '😇', bad: '😈' };
+// Sun for the good (light) factory, moon for the bad (dark) one.
+const FACTORY_ICONS = {
+  good: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>',
+  bad: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>',
+};
 
 function escapeHtml(str) {
   return String(str ?? '').replace(/[&<>"']/g, (c) => ({
@@ -391,6 +394,7 @@ app.get('/admin', requireAdminAuth, (req, res) => {
   const submissions = loadSubmissions();
   const health = loadHealth();
   const factory = parseFactory(req.query.factory) || 'good';
+  const other = otherFactory(factory);
   const names = factoriesOf(loadRing());
   const members = loadMembers().filter(m => factoryOf(m) === factory);
   const hidden = members.filter(m => !isReachable(m, health));
@@ -436,14 +440,11 @@ app.get('/admin', requireAdminAuth, (req, res) => {
   th, td { border: 1px solid var(--rule); padding: 0.5rem 0.75rem; text-align: left; vertical-align: top; }
   th { background: var(--head); }
   button { cursor: pointer; }
-  .switch { display: inline-flex; border: 1px solid var(--ink); border-radius: 6px; overflow: hidden; }
-  .switch a { display: inline-flex; align-items: center; gap: 0.5rem; padding: 0.5rem 0.9rem; color: var(--ink); text-decoration: none; font-weight: 600; }
-  .switch a + a { border-left: 1px solid var(--ink); }
-  .switch a[aria-current="page"] { background: var(--ink); color: var(--paper); }
-  .switch .face { font-size: 1.2em; line-height: 1; }
+  .switch { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.9rem; text-decoration: none; border: 1px solid var(--rule); border-radius: 6px; padding: 0.35rem 0.7rem; }
+  .switch svg { width: 15px; height: 15px; }
 </style></head>
 <body>
-  <nav class="switch" aria-label="Factory">${['good', 'bad'].map(f => `<a href="/admin?factory=${f}"${f === factory ? ' aria-current="page"' : ''}><span class="face" aria-hidden="true">${FACTORY_FACES[f]}</span>${f === 'good' ? 'Good ideas' : 'Bad ideas'}</a>`).join('')}</nav>
+  <a class="switch" href="/admin?factory=${other}">${FACTORY_ICONS[other]}${escapeHtml(names[other].name)}</a>
   <h1>Pending submissions (${submissions.length})</h1>
   <p>Approve by adding an entry to <code>members.json</code>, then delete it from here.</p>
   <table>

@@ -74,31 +74,21 @@
       gap: 12px;
     }
     .factory-switch {
-      margin-top: clamp(24px, 4vw, 40px);
-      display: inline-flex;
-      border: 1px solid var(--rule-strong);
-      border-radius: 6px;
-      overflow: hidden;
-    }
-    .factory-switch button {
+      order: 2;
       display: inline-flex;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
       background: none;
-      border: 0;
+      border: 1px solid var(--rule);
+      border-radius: 4px;
       color: var(--ink);
       font: inherit;
-      font-size: clamp(1rem, 1.8vw, 1.25rem);
-      font-weight: 600;
-      letter-spacing: -0.01em;
-      padding: 12px 20px;
+      padding: 6px 10px;
       cursor: pointer;
-      transition: background-color 120ms linear;
+      transition: border-color 120ms linear;
     }
-    .factory-switch button + button { border-left: 1px solid var(--rule-strong); }
-    .factory-switch button:hover { background: var(--card); }
-    .factory-switch button[aria-pressed="true"] { background: var(--ink); color: var(--paper); cursor: default; }
-    .factory-switch .face { font-size: 1.3em; line-height: 1; }
+    .factory-switch:hover { border-color: var(--ink); }
+    .factory-switch svg { width: 14px; height: 14px; flex: none; }
     .eyebrow::after {
       content: "";
       flex: 1;
@@ -376,12 +366,11 @@
 <body>
   <div class="wrap">
     <header class="masthead">
-      <p class="eyebrow" id="eyebrow">Web ring</p>
-      <h1 id="ring-name">Web Ring</h1>
-      <div class="factory-switch" role="group" aria-label="Factory">
-        <button type="button" data-factory="good" aria-pressed="true"><span class="face" aria-hidden="true">😇</span>Good ideas</button>
-        <button type="button" data-factory="bad" aria-pressed="false"><span class="face" aria-hidden="true">😈</span>Bad ideas</button>
+      <div class="eyebrow">
+        <span id="eyebrow">Web ring</span>
+        <button class="factory-switch" id="factory-switch" type="button"></button>
       </div>
+      <h1 id="ring-name">Web Ring</h1>
       <p class="lede" id="ring-desc">A hand-kept circle of independently built projects. Every member carries a small bar linking to its neighbours, so one site leads to the next without a search box in between.</p>
 
       <dl class="masthead-meta">
@@ -475,6 +464,12 @@
       try { return new URL(url).hostname.replace(/^www\./, ''); } catch { return ''; }
     };
 
+    // Sun for the good (light) factory, moon for the bad (dark) one.
+    const ICONS = {
+      good: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>',
+      bad: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg>',
+    };
+    const other = (f) => (f === 'bad' ? 'good' : 'bad');
 
     let ring;
     let factory = 'good';
@@ -493,9 +488,8 @@
       const desc = ring.factories[factory].description || ring.description;
       if (desc) document.getElementById('ring-desc').textContent = desc;
 
-      for (const b of document.querySelectorAll('.factory-switch button')) {
-        b.setAttribute('aria-pressed', String(b.dataset.factory === factory));
-      }
+      const sw = document.getElementById('factory-switch');
+      sw.innerHTML = `${ICONS[other(factory)]}<span>${esc(ring.factories[other(factory)].name)}</span>`;
       document.getElementById('random').href = `/random?factory=${factory}`;
 
       const url = new URL(location.href);
@@ -536,9 +530,7 @@
 
       document.getElementById('eyebrow').textContent = ring.name;
       document.getElementById('footer-name').textContent = ring.name;
-      for (const b of document.querySelectorAll('.factory-switch button')) {
-        b.addEventListener('click', () => { if (b.dataset.factory !== factory) show(b.dataset.factory); });
-      }
+      document.getElementById('factory-switch').addEventListener('click', () => show(other(factory)));
       await show(start);
 
       const snippet = '<' + `script src="${RING_URL}/widget.js"></` + 'script>';
