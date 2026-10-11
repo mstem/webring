@@ -199,13 +199,14 @@ function findMemberIndex(members, from) {
   return members.findIndex(m => normalizeUrl(m.url) === needle);
 }
 
-// The factory a visitor is walking: the one their current site belongs to,
-// else one named outright, else good.
+// The factory a visitor is walking: the one they picked in the bar's light /
+// dark switch, else the one their current site belongs to, else good.
 function factoryForRequest(req) {
+  const picked = parseFactory(req.query.factory);
+  if (picked) return picked;
   const members = loadMembers();
   const idx = req.query.from ? findMemberIndex(members, req.query.from) : -1;
-  if (idx !== -1) return factoryOf(members[idx]);
-  return parseFactory(req.query.factory) || 'good';
+  return idx !== -1 ? factoryOf(members[idx]) : 'good';
 }
 
 // --- Navigation routes ---
