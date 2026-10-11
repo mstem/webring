@@ -65,7 +65,7 @@ Set `join.enabled` to `false` to disable the submission form and hide the join s
 
 ### Good and Bad Idea Factories
 
-The ring is two sibling rings. Each member has an optional `"factory": "good"` or `"factory": "bad"` in `members.json`; leaving it out means good. The bar opens in the site's own factory, showing an angel or devil and a factory before the factory's name, with "Webring" justified to the same width on the line below, in dark colours for bad. A button on its right offers the other mode (Dark mode on a good site, Light mode on a bad one, shortened to Dark or Light on phones), and switches which ring the arrows walk. The name is not a link: the bar only ever leads to other members.
+The ring is two sibling rings. Each member has an optional `"factory": "good"` or `"factory": "bad"` in `members.json`; leaving it out means good. The bar opens in the site's own factory, showing the factory's name, with "Webring" and then an angel or devil and a factory justified to the same width on the line below, in dark colours for bad. A button on its right offers the other mode (Dark mode on a good site, Light mode on a bad one, shortened to Dark or Light on phones), and switches which ring the arrows walk. The name is not a link: the bar only ever leads to other members.
 
 The homepage and `/admin` open on the Good Idea Factory in light mode, with a button that switches to the Bad Idea Factory in dark mode. `?factory=bad` links straight to it. Names and descriptions come from the optional `factories` block in `ring.json`:
 
