@@ -100,6 +100,14 @@ Two paths:
 - **Non-technical:** fill out the form on the ring homepage → submission lands in `submissions.json` → ring admin reviews and moves the entry to `members.json`
 - **Technical:** open a pull request adding your site to `members.json`
 
+## Admin
+
+`/admin` lists pending submissions and member health. Set `ADMIN_PASSWORD` to turn it on; without it the page answers 503.
+
+Opening `/admin` in a browser while signed out goes to `/admin/login`, a password form, and back to the page you asked for once you sign in. Signing in sets a cookie scoped to `/admin`: it lasts 180 days with Remember me ticked, and otherwise ends with the browser session, 12 hours at most. Changing `ADMIN_PASSWORD` signs every browser out. Sign out is at the top of the admin page.
+
+Scripts can keep using HTTP Basic auth with any username and the admin password, e.g. `curl -u admin:$ADMIN_PASSWORD https://your-ring.example.com/admin`. The sync endpoint takes the same password in an `x-admin-secret` header. Ten wrong passwords from one address in 15 minutes, across the form, Basic auth and the sync secret together, lock that address out until the window passes.
+
 ## Local development
 
 ```bash
