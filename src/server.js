@@ -1,17 +1,22 @@
 import express from 'express';
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
-import { fileURLToPath } from 'url';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, realpathSync } from 'fs';
+import { fileURLToPath, pathToFileURL } from 'url';
 import { dirname, join } from 'path';
 import { isPublicMemberUrl, publicMembers, NOT_PUBLIC_ERROR } from './member-url.js';
 import { secretMatches, rateLimiter, clientIp, resolvesPublic } from './guard.js';
 import { factoryOf, parseFactory, otherFactory, factoriesOf } from './factory.js';
+import {
+  SESSION_COOKIE, REMEMBER_MAX_AGE_MS, SESSION_MAX_AGE_MS, signSession, sessionIsValid,
+  readCookie, safeNext, loginUrl, isBrowserRequest, wantsLoginPage, isHttps,
+} from './session.js';
+import { loginPage } from './login-page.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
 const DATA_DIR = process.env.DATA_DIR || ROOT;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
 
-const app = express();
+export const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -149,26 +154,36 @@ function escapeHtml(str) {
 }
 
 // Ten wrong passwords from one address in fifteen minutes locks that address
-// out of both admin doors until the window passes.
+// out of every admin door (sign-in form, Basic auth, sync secret) until the
+// window passes.
 const authFailures = rateLimiter({ max: 10, windowMs: 15 * 60 * 1000 });
 
+// The sign-in cookie from /admin/login, or Basic auth for scripts.
 function requireAdminAuth(req, res, next) {
   if (!ADMIN_PASSWORD) {
     return res.status(503).send('Admin page is not configured (ADMIN_PASSWORD not set).');
   }
   const ip = clientIp(req);
   if (authFailures.blocked(ip)) return res.status(429).send('Too many failed attempts. Try again later.');
+  if (sessionIsValid(readCookie(req, SESSION_COOKIE), ADMIN_PASSWORD)) return next();
   const header = req.headers.authorization || '';
   const [scheme, encoded] = header.split(' ');
   const decoded = encoded ? Buffer.from(encoded, 'base64').toString('utf8') : '';
   const password = decoded.includes(':') ? decoded.slice(decoded.indexOf(':') + 1) : decoded;
-  if (scheme !== 'Basic' || !secretMatches(password, ADMIN_PASSWORD)) {
-    // A browser's first request carries no credentials; only a wrong guess counts.
-    if (header) authFailures.hit(ip);
-    res.setHeader('WWW-Authenticate', 'Basic realm="Webring Admin"');
-    return res.status(401).send('Authentication required.');
+  if (scheme === 'Basic' && secretMatches(password, ADMIN_PASSWORD)) return next();
+
+  // A request with no credentials is not a guess; only a wrong one counts.
+  if (header) authFailures.hit(ip);
+  if (wantsLoginPage(req)) {
+    // A signed-out form post goes back to the admin page it came from, not to
+    // the action, which a GET can't repeat.
+    if (req.method === 'GET') return res.redirect(302, loginUrl(req.originalUrl));
+    return res.redirect(303, loginUrl(`/admin?factory=${parseFactory(req.body?.factory) || 'good'}`));
   }
-  next();
+  // Scripts still get the Basic challenge. A browser would answer it with its
+  // own login box, so it gets a bare 401.
+  if (!isBrowserRequest(req)) res.setHeader('WWW-Authenticate', 'Basic realm="Webring Admin"');
+  return res.status(401).send('Authentication required.');
 }
 
 // Same secret as the admin page, presented as a header instead of Basic auth so
@@ -391,6 +406,48 @@ app.use('/admin', (req, res, next) => {
   next();
 });
 
+// --- Admin: sign in and out ---
+
+app.get('/admin/login', (req, res) => {
+  if (!ADMIN_PASSWORD) {
+    return res.status(503).send('Admin page is not configured (ADMIN_PASSWORD not set).');
+  }
+  res.send(loginPage({ next: safeNext(req.query.next) }));
+});
+
+app.post('/admin/login', (req, res) => {
+  if (!ADMIN_PASSWORD) {
+    return res.status(503).send('Admin page is not configured (ADMIN_PASSWORD not set).');
+  }
+  const next = safeNext(req.body?.next);
+  const ip = clientIp(req);
+  if (authFailures.blocked(ip)) {
+    return res.status(429).send(loginPage({ next, error: 'Too many failed attempts. Try again later.' }));
+  }
+  if (!secretMatches(req.body?.password, ADMIN_PASSWORD)) {
+    authFailures.hit(ip);
+    return res.status(401).send(loginPage({ next, error: 'Wrong password.' }));
+  }
+  authFailures.clear(ip);
+  const remember = ['on', 'true', true].includes(req.body?.remember);
+  const maxAge = remember ? REMEMBER_MAX_AGE_MS : SESSION_MAX_AGE_MS;
+  res.cookie(SESSION_COOKIE, signSession(Date.now() + maxAge, ADMIN_PASSWORD), {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: isHttps(req),
+    path: '/admin',
+    // Without Remember me the cookie dies with the browser session, and the
+    // expiry signed into it caps it at 12 hours either way.
+    ...(remember ? { maxAge } : {}),
+  });
+  res.redirect(303, next);
+});
+
+app.post('/admin/logout', (req, res) => {
+  res.clearCookie(SESSION_COOKIE, { httpOnly: true, sameSite: 'lax', secure: isHttps(req), path: '/admin' });
+  res.redirect(303, '/admin/login');
+});
+
 app.get('/admin', requireAdminAuth, (req, res) => {
   const submissions = loadSubmissions();
   const health = loadHealth();
@@ -443,9 +500,13 @@ app.get('/admin', requireAdminAuth, (req, res) => {
   button { cursor: pointer; }
   .switch { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.9rem; text-decoration: none; border: 1px solid var(--rule); border-radius: 6px; padding: 0.35rem 0.7rem; }
   .switch svg { width: 15px; height: 15px; }
+  .top { display: flex; align-items: center; justify-content: space-between; gap: 1rem; }
 </style></head>
 <body>
-  <a class="switch" href="/admin?factory=${other}">${FACTORY_ICONS[other]}${escapeHtml(names[other].name)}</a>
+  <div class="top">
+    <a class="switch" href="/admin?factory=${other}">${FACTORY_ICONS[other]}${escapeHtml(names[other].name)}</a>
+    <form method="POST" action="/admin/logout"><button type="submit">Sign out</button></form>
+  </div>
   <h1>Pending submissions (${submissions.length})</h1>
   <p>Approve by adding an entry to <code>members.json</code>, then delete it from here.</p>
   <table>
@@ -485,8 +546,11 @@ app.get('/{*splat}', (req, res) => {
   res.sendFile(join(ROOT, 'public', 'index.html'));
 });
 
+// Imported by the tests without starting a server or the health timers.
+const isMain = process.argv[1] && pathToFileURL(realpathSync(process.argv[1])).href === import.meta.url;
+
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+if (isMain) app.listen(PORT, () => {
   console.log(`Web ring running on http://localhost:${PORT}`);
   // First sweep runs shortly after boot rather than during it, so a slow or
   // unreachable member can never hold up serving the ring.
