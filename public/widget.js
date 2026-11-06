@@ -20,7 +20,7 @@
       grid-template-columns: 1fr auto 1fr;
       align-items: center;
       gap: 0.55rem;
-      padding: 0.45rem 1rem;
+      padding: 0.8rem 1rem;
       background: rgba(255, 255, 255, 0.5);
       border-top: 1px solid rgba(15, 23, 42, 0.08);
       color: rgba(15, 23, 42, 0.6);
