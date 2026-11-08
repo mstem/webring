@@ -12,9 +12,9 @@
   const TARGET_ID = 'webring-widget';
 
   // Dressed like biffud.com, the Bad Idea Factory's own site: Overpass in heavy
-  // tracked capitals, square outlined buttons, links underlined with a bar, and
-  // in dark mode a saturated background drawn at random from biffud.com's
-  // palette. Only its colours that keep white text at 4.5:1 or better are here.
+  // tracked capitals, square outlined buttons and, in dark mode, a saturated
+  // background drawn at random from biffud.com's
+  // palette. Only its colors that keep white text at 4.5:1 or better are here.
   const BIF_COLORS = [
     '#940700', '#941400', '#942a00', '#944900', '#947200', '#003994',
     '#110094', '#520094', '#8a0094', '#94006e', '#940049',
@@ -25,7 +25,6 @@
   const CSS = `
     #webring-widget {
       --wring-ink: #1d1c1a;
-      --wring-bar: rgba(0, 0, 0, 0.38);
       font-family: 'Overpass', 'Helvetica Neue', Helvetica, Arial, sans-serif;
       font-weight: 400;
       font-size: 0.75rem;
@@ -49,11 +48,9 @@
       color: inherit;
       font-weight: 800;
       text-decoration: none;
-      border-bottom: 2px solid var(--wring-bar);
-      padding-bottom: 0.1em;
-      transition: border-color 0.15s;
+      transition: opacity 0.15s;
     }
-    #webring-widget a:hover { border-bottom-color: currentColor; }
+    #webring-widget a:hover { opacity: 0.6; }
     #webring-widget .wring-name {
       display: inline-flex;
       flex-direction: column;
@@ -79,7 +76,6 @@
       grid-column: 3;
       justify-self: end;
       font: inherit;
-      font-weight: 800;
       text-transform: uppercase;
       letter-spacing: 0.04em;
       color: inherit;
@@ -94,12 +90,10 @@
     @media (max-width: 480px) {
       #webring-widget { grid-template-columns: 1fr; justify-items: center; }
       #webring-widget .wring-nav, #webring-widget .wring-mode { grid-column: 1; justify-self: center; }
-      #webring-widget .wring-mode-word { display: none; }
     }
     /* :where() keeps the dark rules at the same weight as the defaults above,
        so a member site that restyles the bar still wins. */
     #webring-widget:where(.wring-bad) {
-      --wring-bar: rgba(0, 0, 0, 0.45);
       background: ${BIF_COLOR};
       border-top-color: #fff;
       color: #fff;
@@ -138,10 +132,10 @@
       el.innerHTML =
         `<span class="wring-nav">` +
           `<a href="${RING_URL}/prev?${q}" title="Previous site">←</a>` +
-                    `<span class="wring-name"><span class="wring-title">${name}</span><span>Webring<span class="wring-faces" aria-hidden="true"><span>${face}</span><span>🏭</span></span></span></span>` +
+                    `<span class="wring-name"><span class="wring-title">${name}</span><span>webring<span class="wring-faces" aria-hidden="true"><span>${face}</span><span>🏭</span></span></span></span>` +
                     `<a href="${RING_URL}/next?${q}" title="Next site">→</a>` +
         `</span>` +
-        `<button type="button" class="wring-mode">${factory === 'bad' ? 'Light' : 'Dark'}<span class="wring-mode-word"> mode</span></button>`;
+        `<button type="button" class="wring-mode">${factory === 'bad' ? 'Light' : 'Dark'} mode</button>`;
       el.querySelector('.wring-mode').addEventListener('click', () => render(factory === 'bad' ? 'good' : 'bad'));
     }
 
