@@ -19,18 +19,25 @@
     '#940700', '#941400', '#942a00', '#944900', '#003994',
     '#110094', '#520094', '#8a0094', '#94006e', '#940049',
   ];
-  const BIF_COLOR = BIF_COLORS[Math.floor(Math.random() * BIF_COLORS.length)];
-  const FONT_URL = 'https://fonts.googleapis.com/css2?family=Overpass:wght@400;800&display=swap';
 
   // biffud.com's own arrow icon (its IcoMoon icon font), inlined so member
   // sites need nothing extra. The left arrow is the same icon flipped in CSS.
-  const ARROW = (d) => `<svg viewBox="0 0 1024 1024" width="1em" height="1em" aria-hidden="true" focusable="false"><path fill="currentColor" d="${d}"/></svg>`;
-  const ARROW_RIGHT = ARROW('M621.254 877.254l320-320c24.994-24.992 24.994-65.516 0-90.51l-320-320c-24.994-24.992-65.516-24.992-90.51 0-24.994 24.994-24.994 65.516 0 90.51l210.746 210.746h-613.49c-35.346 0-64 28.654-64 64s28.654 64 64 64h613.49l-210.746 210.746c-12.496 12.496-18.744 28.876-18.744 45.254s6.248 32.758 18.744 45.254c24.994 24.994 65.516 24.994 90.51 0z');
+  const ARROW = `<svg viewBox="0 0 1024 1024" width="1em" height="1em" aria-hidden="true" focusable="false"><path fill="currentColor" d="M621.254 877.254l320-320c24.994-24.992 24.994-65.516 0-90.51l-320-320c-24.994-24.992-65.516-24.992-90.51 0-24.994 24.994-24.994 65.516 0 90.51l210.746 210.746h-613.49c-35.346 0-64 28.654-64 64s28.654 64 64 64h613.49l-210.746 210.746c-12.496 12.496-18.744 28.876-18.744 45.254s6.248 32.758 18.744 45.254c24.994 24.994 65.516 24.994 90.51 0z"/></svg>`;
 
+  // Overpass is served by the ring itself (SIL OFL, see fonts/OFL.txt) under
+  // its own family name, so it never touches the member site's fonts and no
+  // visitor data goes to a font CDN.
   const CSS = `
+    @font-face {
+      font-family: 'webring-overpass';
+      src: url('${RING_URL}/fonts/overpass-latin.woff2') format('woff2');
+      font-weight: 400 800;
+      font-display: swap;
+    }
     #webring-widget {
       --wring-ink: #1d1c1a;
-      font-family: 'Overpass', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      --wring-fg: var(--wring-ink);
+      font-family: 'webring-overpass', 'Helvetica Neue', Helvetica, Arial, sans-serif;
       font-weight: 400;
       font-size: 0.75rem;
       line-height: 1.3;
@@ -65,7 +72,7 @@
       #webring-widget .wring-next:hover, #webring-widget .wring-next:focus-visible { transform: translateX(3px); }
     }
     #webring-widget a:focus-visible, #webring-widget .wring-mode:focus-visible {
-      outline: 2px solid currentColor;
+      outline: 2px solid var(--wring-fg);
       outline-offset: 2px;
     }
     #webring-widget a svg { display: block; }
@@ -116,7 +123,7 @@
     /* :where() keeps the dark rules at the same weight as the defaults above,
        so a member site that restyles the bar still wins. */
     #webring-widget:where(.wring-bad) {
-      --wring-bad: ${BIF_COLOR};
+      --wring-fg: #fff;
       background: var(--wring-bad);
       border-top-color: #fff;
       color: #fff;
@@ -126,19 +133,12 @@
   const esc = (t) => String(t).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
   function inject(ring) {
-    // Add stylesheet
     // One stylesheet per page, however many times the script runs.
     if (!document.getElementById('webring-style')) {
       const style = document.createElement('style');
       style.id = 'webring-style';
       style.textContent = CSS;
       document.head.appendChild(style);
-    }
-    if (!document.querySelector(`link[href="${FONT_URL}"]`)) {
-      const font = document.createElement('link');
-      font.rel = 'stylesheet';
-      font.href = FONT_URL;
-      document.head.appendChild(font);
     }
 
     // Determine mount point
@@ -154,14 +154,16 @@
     // mode and switches which ring the arrows walk.
     function render(factory) {
       el.classList.toggle('wring-bad', factory === 'bad');
+      // A fresh biffud.com color each time the bar draws in bad mode.
+      el.style.setProperty('--wring-bad', BIF_COLORS[Math.floor(Math.random() * BIF_COLORS.length)]);
       const name = ring.factories?.[factory]?.name || ring.name;
       const face = factory === 'bad' ? '😈' : '😇';
       const q = `from=${FROM}&factory=${factory}`;
       el.innerHTML =
         `<span class="wring-nav">` +
-          `<a href="${RING_URL}/prev?${q}" class="wring-prev" title="Previous site" aria-label="Previous site">${ARROW_RIGHT}</a>` +
+          `<a href="${RING_URL}/prev?${q}" class="wring-prev" title="Previous site">${ARROW}</a>` +
           `<span class="wring-name"><span class="wring-title">${esc(name)}</span><span>webring<span class="wring-faces" aria-hidden="true"><span>${face}</span><span>🏭</span></span></span></span>` +
-          `<a href="${RING_URL}/next?${q}" class="wring-next" title="Next site" aria-label="Next site">${ARROW_RIGHT}</a>` +
+          `<a href="${RING_URL}/next?${q}" class="wring-next" title="Next site">${ARROW}</a>` +
         `</span>` +
         `<button type="button" class="wring-mode">${factory === 'bad' ? 'Light' : 'Dark'} mode</button>`;
       el.querySelector('.wring-mode').addEventListener('click', () => {

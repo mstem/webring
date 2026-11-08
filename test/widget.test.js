@@ -10,11 +10,13 @@ const SOURCE = readFileSync(new URL('../public/widget.js', import.meta.url), 'ut
 async function renderWidget(ring, { loads = 1 } = {}) {
   const appended = [];
   let fetches = 0;
+  const button = { listeners: [], addEventListener(_, fn) { this.listeners.push(fn); }, focus() {} };
   const bar = {
     id: 'webring-widget',
     innerHTML: '',
     classList: { toggle() {} },
-    querySelector: () => ({ addEventListener() {} }),
+    style: { setProperty() {} },
+    querySelector: () => button,
   };
   const document = {
     currentScript: { src: 'https://ring.example/widget.js' },
@@ -28,7 +30,7 @@ async function renderWidget(ring, { loads = 1 } = {}) {
   const fetch = async () => { fetches++; return { json: async () => ring }; };
   for (let i = 0; i < loads; i++) runInNewContext(SOURCE, { document, window, fetch, URL, encodeURIComponent });
   await new Promise((r) => setTimeout(r, 0));
-  return { bar, fetches, styles: appended.filter((n) => n.tag === 'style') };
+  return { bar, button, fetches, appended, styles: appended.filter((n) => n.tag === 'style') };
 }
 
 test('the factory name is escaped, never parsed as markup', async () => {
@@ -50,4 +52,19 @@ test('a later run, as after a client-side navigation, renders the bar again', as
   const { bar, fetches } = await renderWidget({ factory: 'good' }, { loads: 2 });
   assert.equal(fetches, 2);
   assert.ok(bar.innerHTML.includes('wring-next'));
+});
+
+test('the mode button switches the arrows to the other factory', async () => {
+  const { bar, button } = await renderWidget({ factory: 'good' });
+  assert.ok(bar.innerHTML.includes('factory=good'));
+  button.listeners.at(-1)();
+  assert.ok(bar.innerHTML.includes('factory=bad'));
+  assert.ok(bar.innerHTML.includes('Light mode'));
+});
+
+test('the bar loads its font from the ring, never from a font CDN', async () => {
+  const { appended, styles } = await renderWidget({ factory: 'good' });
+  assert.equal(appended.length, 1);
+  assert.ok(styles[0].textContent.includes('https://ring.example/fonts/overpass-latin.woff2'));
+  assert.ok(!/googleapis|gstatic/.test(styles[0].textContent));
 });
