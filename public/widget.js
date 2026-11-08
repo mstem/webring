@@ -22,6 +22,12 @@
   const BIF_COLOR = BIF_COLORS[Math.floor(Math.random() * BIF_COLORS.length)];
   const FONT_URL = 'https://fonts.googleapis.com/css2?family=Overpass:wght@400;800&display=swap';
 
+  // biffud.com's own arrow icons (its IcoMoon icon font), inlined so member
+  // sites need nothing extra.
+  const ARROW = (d) => `<svg viewBox="0 0 1024 1024" width="1em" height="1em" aria-hidden="true" focusable="false"><path fill="currentColor" d="${d}"/></svg>`;
+  const ARROW_LEFT = ARROW('M402.746 877.254l-320-320c-24.994-24.992-24.994-65.516 0-90.51l320-320c24.994-24.992 65.516-24.992 90.51 0 24.994 24.994 24.994 65.516 0 90.51l-210.746 210.746h613.49c35.346 0 64 28.654 64 64s-28.654 64-64 64h-613.49l210.746 210.746c12.496 12.496 18.744 28.876 18.744 45.254s-6.248 32.758-18.744 45.254c-24.994 24.994-65.516 24.994-90.51 0z');
+  const ARROW_RIGHT = ARROW('M621.254 877.254l320-320c24.994-24.992 24.994-65.516 0-90.51l-320-320c-24.994-24.992-65.516-24.992-90.51 0-24.994 24.994-24.994 65.516 0 90.51l210.746 210.746h-613.49c-35.346 0-64 28.654-64 64s28.654 64 64 64h613.49l-210.746 210.746c-12.496 12.496-18.744 28.876-18.744 45.254s6.248 32.758 18.744 45.254c24.994 24.994 65.516 24.994 90.51 0z');
+
   const CSS = `
     #webring-widget {
       --wring-ink: #1d1c1a;
@@ -51,6 +57,7 @@
       transition: opacity 0.15s;
     }
     #webring-widget a:hover { opacity: 0.6; }
+    #webring-widget a svg { display: block; }
     #webring-widget .wring-name {
       display: inline-flex;
       flex-direction: column;
@@ -131,9 +138,9 @@
       const q = `from=${FROM}&factory=${factory}`;
       el.innerHTML =
         `<span class="wring-nav">` +
-          `<a href="${RING_URL}/prev?${q}" title="Previous site">←</a>` +
+          `<a href="${RING_URL}/prev?${q}" title="Previous site" aria-label="Previous site">${ARROW_LEFT}</a>` +
                     `<span class="wring-name"><span class="wring-title">${name}</span><span>webring<span class="wring-faces" aria-hidden="true"><span>${face}</span><span>🏭</span></span></span></span>` +
-                    `<a href="${RING_URL}/next?${q}" title="Next site">→</a>` +
+                    `<a href="${RING_URL}/next?${q}" title="Next site" aria-label="Next site">${ARROW_RIGHT}</a>` +
         `</span>` +
         `<button type="button" class="wring-mode">${factory === 'bad' ? 'Light' : 'Dark'} mode</button>`;
       el.querySelector('.wring-mode').addEventListener('click', () => render(factory === 'bad' ? 'good' : 'bad'));
