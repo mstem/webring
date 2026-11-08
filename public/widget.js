@@ -2,9 +2,6 @@
 (function () {
   const script = document.currentScript;
   if (!script) return; // must not be deferred/async
-  // A page that includes the script twice still gets one bar and one stylesheet.
-  if (window.__webringLoaded) return;
-  window.__webringLoaded = true;
 
   const RING_URL = new URL(script.src).origin;
   const FROM = encodeURIComponent(window.location.origin);
@@ -25,10 +22,9 @@
   const BIF_COLOR = BIF_COLORS[Math.floor(Math.random() * BIF_COLORS.length)];
   const FONT_URL = 'https://fonts.googleapis.com/css2?family=Overpass:wght@400;800&display=swap';
 
-  // biffud.com's own arrow icons (its IcoMoon icon font), inlined so member
-  // sites need nothing extra.
+  // biffud.com's own arrow icon (its IcoMoon icon font), inlined so member
+  // sites need nothing extra. The left arrow is the same icon flipped in CSS.
   const ARROW = (d) => `<svg viewBox="0 0 1024 1024" width="1em" height="1em" aria-hidden="true" focusable="false"><path fill="currentColor" d="${d}"/></svg>`;
-  const ARROW_LEFT = ARROW('M402.746 877.254l-320-320c-24.994-24.992-24.994-65.516 0-90.51l320-320c24.994-24.992 65.516-24.992 90.51 0 24.994 24.994 24.994 65.516 0 90.51l-210.746 210.746h613.49c35.346 0 64 28.654 64 64s-28.654 64-64 64h-613.49l210.746 210.746c12.496 12.496 18.744 28.876 18.744 45.254s-6.248 32.758-18.744 45.254c-24.994 24.994-65.516 24.994-90.51 0z');
   const ARROW_RIGHT = ARROW('M621.254 877.254l320-320c24.994-24.992 24.994-65.516 0-90.51l-320-320c-24.994-24.992-65.516-24.992-90.51 0-24.994 24.994-24.994 65.516 0 90.51l210.746 210.746h-613.49c-35.346 0-64 28.654-64 64s28.654 64 64 64h613.49l-210.746 210.746c-12.496 12.496-18.744 28.876-18.744 45.254s6.248 32.758 18.744 45.254c24.994 24.994 65.516 24.994 90.51 0z');
 
   const CSS = `
@@ -60,17 +56,20 @@
       margin: -0.375rem;
       color: inherit;
       text-decoration: none;
-      transition: transform 0.15s;
     }
     /* Hover nudges the arrow outward. Fading it would drop white below 4.5:1
        on the bad palette. */
-    #webring-widget .wring-prev:hover, #webring-widget .wring-prev:focus-visible { transform: translateX(-3px); }
-    #webring-widget .wring-next:hover, #webring-widget .wring-next:focus-visible { transform: translateX(3px); }
+    @media (prefers-reduced-motion: no-preference) {
+      #webring-widget a { transition: transform 0.15s; }
+      #webring-widget .wring-prev:hover, #webring-widget .wring-prev:focus-visible { transform: translateX(-3px); }
+      #webring-widget .wring-next:hover, #webring-widget .wring-next:focus-visible { transform: translateX(3px); }
+    }
     #webring-widget a:focus-visible, #webring-widget .wring-mode:focus-visible {
       outline: 2px solid currentColor;
       outline-offset: 2px;
     }
     #webring-widget a svg { display: block; }
+    #webring-widget .wring-prev svg { transform: scaleX(-1); }
     #webring-widget .wring-name {
       display: inline-flex;
       flex-direction: column;
@@ -106,7 +105,10 @@
       padding: 0.35rem 0.7rem 0.25rem;
       cursor: pointer;
     }
-    #webring-widget .wring-mode:hover { background: var(--wring-ink); color: #fff; }
+    @media (hover: hover) {
+      #webring-widget .wring-mode:hover { background: var(--wring-ink); color: #fff; }
+      #webring-widget:where(.wring-bad) .wring-mode:hover { background: #fff; color: var(--wring-bad); }
+    }
     @media (max-width: 480px) {
       #webring-widget { grid-template-columns: 1fr; justify-items: center; }
       #webring-widget .wring-nav, #webring-widget .wring-mode { grid-column: 1; justify-self: center; }
@@ -119,16 +121,19 @@
       border-top-color: #fff;
       color: #fff;
     }
-    #webring-widget:where(.wring-bad) .wring-mode:hover { background: #fff; color: var(--wring-bad); }
   `;
 
   const esc = (t) => String(t).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
   function inject(ring) {
     // Add stylesheet
-    const style = document.createElement('style');
-    style.textContent = CSS;
-    document.head.appendChild(style);
+    // One stylesheet per page, however many times the script runs.
+    if (!document.getElementById('webring-style')) {
+      const style = document.createElement('style');
+      style.id = 'webring-style';
+      style.textContent = CSS;
+      document.head.appendChild(style);
+    }
     if (!document.querySelector(`link[href="${FONT_URL}"]`)) {
       const font = document.createElement('link');
       font.rel = 'stylesheet';
@@ -154,12 +159,16 @@
       const q = `from=${FROM}&factory=${factory}`;
       el.innerHTML =
         `<span class="wring-nav">` +
-          `<a href="${RING_URL}/prev?${q}" class="wring-prev" rel="prev" title="Previous site" aria-label="Previous site">${ARROW_LEFT}</a>` +
+          `<a href="${RING_URL}/prev?${q}" class="wring-prev" title="Previous site" aria-label="Previous site">${ARROW_RIGHT}</a>` +
           `<span class="wring-name"><span class="wring-title">${esc(name)}</span><span>webring<span class="wring-faces" aria-hidden="true"><span>${face}</span><span>🏭</span></span></span></span>` +
-          `<a href="${RING_URL}/next?${q}" class="wring-next" rel="next" title="Next site" aria-label="Next site">${ARROW_RIGHT}</a>` +
+          `<a href="${RING_URL}/next?${q}" class="wring-next" title="Next site" aria-label="Next site">${ARROW_RIGHT}</a>` +
         `</span>` +
         `<button type="button" class="wring-mode">${factory === 'bad' ? 'Light' : 'Dark'} mode</button>`;
-      el.querySelector('.wring-mode').addEventListener('click', () => render(factory === 'bad' ? 'good' : 'bad'));
+      el.querySelector('.wring-mode').addEventListener('click', () => {
+        render(factory === 'bad' ? 'good' : 'bad');
+        // The button was rebuilt; keep keyboard focus on it.
+        el.querySelector('.wring-mode').focus();
+      });
     }
 
     render(ring.factory === 'bad' ? 'bad' : 'good');
