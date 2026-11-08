@@ -65,14 +65,16 @@
       color: inherit;
       text-decoration: none;
     }
-    /* Hover nudges the arrow outward. Fading it would drop white below 4.5:1
-       on the bad palette. */
-    @media (prefers-reduced-motion: no-preference) {
+    /* Hover nudges the arrow outward, or, with reduced motion, underlines it.
+       Fading it would drop white below 4.5:1 on the bad palette. Each state
+       gets its own rule, so a browser without :focus-visible keeps :hover. */
+    @media (hover: hover) and (prefers-reduced-motion: no-preference) {
       #webring-widget a { transition: transform 0.15s; }
       #webring-widget .wring-prev:hover { transform: translateX(-3px); }
       #webring-widget .wring-next:hover { transform: translateX(3px); }
-      #webring-widget .wring-prev:focus-visible { transform: translateX(-3px); }
-      #webring-widget .wring-next:focus-visible { transform: translateX(3px); }
+    }
+    @media (hover: hover) and (prefers-reduced-motion: reduce) {
+      #webring-widget a:hover { box-shadow: inset 0 -2px 0 var(--wring-fg); }
     }
     #webring-widget a:focus-visible {
       outline: 2px solid var(--wring-fg);
@@ -138,8 +140,6 @@
     }
   `;
 
-  const esc = (t) => String(t).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
-
   function inject(ring) {
     // One stylesheet per page, however many times the script runs.
     if (!document.getElementById('webring-style')) {
@@ -159,37 +159,39 @@
 
     // Light mode is the Good Idea Factory, dark mode the Bad Idea Factory. The
     // bar opens in this site's own factory; its one button offers the other
-    // mode and switches which ring the arrows walk.
-    // One biffud.com color per page load, kept across mode toggles. A member
-    // site that sets --wring-bad on the bar picks its own color instead.
-    if (!el.style.getPropertyValue('--wring-bad-random')) {
-      el.style.setProperty('--wring-bad-random', BIF_COLORS[Math.floor(Math.random() * BIF_COLORS.length)]);
-    }
+    // mode and switches which ring the arrows walk. The markup goes in once and
+    // a toggle only updates it, so the button keeps focus.
+    el.innerHTML =
+      `<span class="wring-nav">` +
+        `<a class="wring-prev" title="Previous site" aria-label="Previous site">${ARROW}</a>` +
+        `<span class="wring-name"><span class="wring-title"></span><span>webring<span class="wring-faces" aria-hidden="true"><span class="wring-face"></span><span>🏭</span></span></span></span>` +
+        `<a class="wring-next" title="Next site" aria-label="Next site">${ARROW}</a>` +
+      `</span>` +
+      `<button type="button" class="wring-mode"></button>`;
+    const prev = el.querySelector('.wring-prev');
+    const next = el.querySelector('.wring-next');
+    const title = el.querySelector('.wring-title');
+    const faceEl = el.querySelector('.wring-face');
+    const mode = el.querySelector('.wring-mode');
+    let current;
 
     function render(factory) {
+      current = factory;
       el.classList.toggle('wring-bad', factory === 'bad');
-      const name = ring.factories?.[factory]?.name || ring.name || '';
-      const face = factory === 'bad' ? '😈' : '😇';
+      // One biffud.com color per page load, kept across toggles. A member site
+      // that sets --wring-bad on the bar picks its own color instead.
+      if (factory === 'bad' && !el.style.getPropertyValue('--wring-bad-random')) {
+        el.style.setProperty('--wring-bad-random', BIF_COLORS[Math.floor(Math.random() * BIF_COLORS.length)]);
+      }
       const q = `from=${FROM}&factory=${factory}`;
-      el.innerHTML =
-        `<span class="wring-nav">` +
-          `<a href="${RING_URL}/prev?${q}" class="wring-prev" title="Previous site" aria-label="Previous site">${ARROW}</a>` +
-          `<span class="wring-name"><span class="wring-title">${esc(name)}</span><span>webring<span class="wring-faces" aria-hidden="true"><span>${face}</span><span>🏭</span></span></span></span>` +
-          `<a href="${RING_URL}/next?${q}" class="wring-next" title="Next site" aria-label="Next site">${ARROW}</a>` +
-        `</span>` +
-        `<button type="button" class="wring-mode">${factory === 'bad' ? 'Light' : 'Dark'} mode</button>`;
-      const mode = el.querySelector('.wring-mode');
-      mode.addEventListener('click', () => {
-        // Only a keyboard user's focus ring shows, so only they need it back.
-        // Browsers without :focus-visible throw here; there, any focused
-        // button gets focus back, which at worst refocuses after a click.
-        let keyboard = document.activeElement === mode;
-        try { keyboard = mode.matches(':focus-visible'); } catch (e) {}
-        render(factory === 'bad' ? 'good' : 'bad');
-        if (keyboard) el.querySelector('.wring-mode').focus();
-      });
+      prev.href = `${RING_URL}/prev?${q}`;
+      next.href = `${RING_URL}/next?${q}`;
+      title.textContent = ring.factories?.[factory]?.name || ring.name || '';
+      faceEl.textContent = factory === 'bad' ? '😈' : '😇';
+      mode.textContent = `${factory === 'bad' ? 'Light' : 'Dark'} mode`;
     }
 
+    mode.addEventListener('click', () => render(current === 'bad' ? 'good' : 'bad'));
     render(ring.factory === 'bad' ? 'bad' : 'good');
   }
 
