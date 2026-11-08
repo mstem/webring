@@ -11,39 +11,59 @@
   // footer, never floating over the site.
   const TARGET_ID = 'webring-widget';
 
+  // Dressed like biffud.com, the Bad Idea Factory's own site: Overpass in heavy
+  // tracked capitals, square outlined buttons, links underlined with a bar, and
+  // in dark mode a saturated background drawn at random from biffud.com's
+  // palette. Only its colours that keep white text at 4.5:1 or better are here.
+  const BIF_COLORS = [
+    '#940700', '#941400', '#942a00', '#944900', '#947200', '#003994',
+    '#110094', '#520094', '#8a0094', '#94006e', '#940049',
+  ];
+  const BIF_COLOR = BIF_COLORS[Math.floor(Math.random() * BIF_COLORS.length)];
+  const FONT_URL = 'https://fonts.googleapis.com/css2?family=Overpass:wght@400;800&display=swap';
+
   const CSS = `
     #webring-widget {
-      font-family: system-ui, -apple-system, sans-serif;
-      font-size: 0.72rem;
-      letter-spacing: 0.01em;
+      --wring-ink: #1d1c1a;
+      --wring-bar: rgba(0, 0, 0, 0.38);
+      font-family: 'Overpass', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      font-weight: 400;
+      font-size: 0.75rem;
+      line-height: 1.3;
       display: grid;
       grid-template-columns: 1fr auto 1fr;
       align-items: center;
-      gap: 0.55rem;
-      padding: 0.8rem 1rem;
-      background: rgba(255, 255, 255, 0.5);
-      border-top: 1px solid rgba(15, 23, 42, 0.08);
-      color: rgba(15, 23, 42, 0.6);
+      gap: 0.7rem;
+      padding: 0.9rem 1rem;
+      background: #fff;
+      border-top: 2px solid var(--wring-ink);
+      color: var(--wring-ink);
     }
     #webring-widget .wring-nav {
       grid-column: 2;
       display: flex;
       align-items: center;
-      gap: 0.55rem;
+      gap: 0.9rem;
     }
     #webring-widget a {
-      color: #6366f1;
+      color: inherit;
+      font-weight: 800;
       text-decoration: none;
-      transition: color 0.15s;
+      border-bottom: 2px solid var(--wring-bar);
+      padding-bottom: 0.1em;
+      transition: border-color 0.15s;
     }
-    #webring-widget a:hover { color: #0f172a; }
+    #webring-widget a:hover { border-bottom-color: currentColor; }
     #webring-widget .wring-name {
-      color: rgba(15, 23, 42, 0.8);
       display: inline-flex;
       flex-direction: column;
       align-items: center;
       text-align: center;
-      line-height: 1.25;
+    }
+    #webring-widget .wring-title {
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
     }
     /* Emoji glyphs draw wider than their box at small sizes, and member sites
        set their own fonts. A fixed slot per emoji, in the emoji font, keeps the
@@ -55,21 +75,22 @@
       text-align: center;
       font-family: "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif;
     }
-    #webring-widget .wring-sep { opacity: 0.3; user-select: none; }
     #webring-widget .wring-mode {
       grid-column: 3;
       justify-self: end;
       font: inherit;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
       color: inherit;
       background: none;
-      border: 1px solid currentColor;
-      border-radius: 4px;
+      border: 2px solid currentColor;
+      border-radius: 0;
       margin: 0;
-      padding: 0.2rem 0.55rem;
+      padding: 0.35rem 0.7rem 0.25rem;
       cursor: pointer;
-      line-height: 1.3;
     }
-    #webring-widget .wring-mode:hover { color: #0f172a; }
+    #webring-widget .wring-mode:hover { background: var(--wring-ink); color: #fff; }
     @media (max-width: 480px) {
       #webring-widget { grid-template-columns: 1fr; justify-items: center; }
       #webring-widget .wring-nav, #webring-widget .wring-mode { grid-column: 1; justify-self: center; }
@@ -78,14 +99,12 @@
     /* :where() keeps the dark rules at the same weight as the defaults above,
        so a member site that restyles the bar still wins. */
     #webring-widget:where(.wring-bad) {
-      background: rgba(20, 20, 19, 0.5);
-      border-top-color: rgba(236, 235, 230, 0.12);
-      color: rgba(236, 235, 230, 0.6);
+      --wring-bar: rgba(0, 0, 0, 0.45);
+      background: ${BIF_COLOR};
+      border-top-color: #fff;
+      color: #fff;
     }
-    #webring-widget:where(.wring-bad) a { color: #8f92f7; }
-    #webring-widget:where(.wring-bad) a:hover { color: #ecebe6; }
-    #webring-widget:where(.wring-bad) .wring-name { color: rgba(236, 235, 230, 0.85); }
-    #webring-widget:where(.wring-bad) .wring-mode:hover { color: #ecebe6; }
+    #webring-widget:where(.wring-bad) .wring-mode:hover { background: #fff; color: ${BIF_COLOR}; }
   `;
 
   function inject(ring) {
@@ -93,6 +112,12 @@
     const style = document.createElement('style');
     style.textContent = CSS;
     document.head.appendChild(style);
+    if (!document.querySelector(`link[href="${FONT_URL}"]`)) {
+      const font = document.createElement('link');
+      font.rel = 'stylesheet';
+      font.href = FONT_URL;
+      document.head.appendChild(font);
+    }
 
     // Determine mount point
     let el = document.getElementById(TARGET_ID);
@@ -113,10 +138,8 @@
       el.innerHTML =
         `<span class="wring-nav">` +
           `<a href="${RING_URL}/prev?${q}" title="Previous site">←</a>` +
-          `<span class="wring-sep">|</span>` +
-          `<span class="wring-name"><span>${name}</span><span>Webring<span class="wring-faces" aria-hidden="true"><span>${face}</span><span>🏭</span></span></span></span>` +
-          `<span class="wring-sep">|</span>` +
-          `<a href="${RING_URL}/next?${q}" title="Next site">→</a>` +
+                    `<span class="wring-name"><span class="wring-title">${name}</span><span>Webring<span class="wring-faces" aria-hidden="true"><span>${face}</span><span>🏭</span></span></span></span>` +
+                    `<a href="${RING_URL}/next?${q}" title="Next site">→</a>` +
         `</span>` +
         `<button type="button" class="wring-mode">${factory === 'bad' ? 'Light' : 'Dark'}<span class="wring-mode-word"> mode</span></button>`;
       el.querySelector('.wring-mode').addEventListener('click', () => render(factory === 'bad' ? 'good' : 'bad'));
