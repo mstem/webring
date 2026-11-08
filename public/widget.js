@@ -2,6 +2,9 @@
 (function () {
   const script = document.currentScript;
   if (!script) return; // must not be deferred/async
+  // A page that includes the script twice still gets one bar and one stylesheet.
+  if (window.__webringLoaded) return;
+  window.__webringLoaded = true;
 
   const RING_URL = new URL(script.src).origin;
   const FROM = encodeURIComponent(window.location.origin);
@@ -14,9 +17,9 @@
   // Dressed like biffud.com, the Bad Idea Factory's own site: Overpass in heavy
   // tracked capitals, square outlined buttons and, in dark mode, a saturated
   // background drawn at random from biffud.com's
-  // palette. Only its colors that keep white text at 4.5:1 or better are here.
+  // palette. Only its colors that keep white text above 4.5:1, with margin, are here.
   const BIF_COLORS = [
-    '#940700', '#941400', '#942a00', '#944900', '#947200', '#003994',
+    '#940700', '#941400', '#942a00', '#944900', '#003994',
     '#110094', '#520094', '#8a0094', '#94006e', '#940049',
   ];
   const BIF_COLOR = BIF_COLORS[Math.floor(Math.random() * BIF_COLORS.length)];
@@ -50,17 +53,23 @@
       align-items: center;
       gap: 0.9rem;
     }
+    /* Padding gives each arrow a 24px tap target around its 12px icon. */
     #webring-widget a {
+      display: inline-block;
+      padding: 0.375rem;
+      margin: -0.375rem;
       color: inherit;
-      font-weight: 800;
       text-decoration: none;
       transition: transform 0.15s;
     }
     /* Hover nudges the arrow outward. Fading it would drop white below 4.5:1
        on the bad palette. */
-    #webring-widget a[rel="prev"]:hover { transform: translateX(-3px); }
-    #webring-widget a[rel="next"]:hover { transform: translateX(3px); }
-    #webring-widget a { display: inline-block; }
+    #webring-widget .wring-prev:hover, #webring-widget .wring-prev:focus-visible { transform: translateX(-3px); }
+    #webring-widget .wring-next:hover, #webring-widget .wring-next:focus-visible { transform: translateX(3px); }
+    #webring-widget a:focus-visible, #webring-widget .wring-mode:focus-visible {
+      outline: 2px solid currentColor;
+      outline-offset: 2px;
+    }
     #webring-widget a svg { display: block; }
     #webring-widget .wring-name {
       display: inline-flex;
@@ -105,11 +114,12 @@
     /* :where() keeps the dark rules at the same weight as the defaults above,
        so a member site that restyles the bar still wins. */
     #webring-widget:where(.wring-bad) {
-      background: ${BIF_COLOR};
+      --wring-bad: ${BIF_COLOR};
+      background: var(--wring-bad);
       border-top-color: #fff;
       color: #fff;
     }
-    #webring-widget:where(.wring-bad) .wring-mode:hover { background: #fff; color: ${BIF_COLOR}; }
+    #webring-widget:where(.wring-bad) .wring-mode:hover { background: #fff; color: var(--wring-bad); }
   `;
 
   const esc = (t) => String(t).replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
@@ -144,9 +154,9 @@
       const q = `from=${FROM}&factory=${factory}`;
       el.innerHTML =
         `<span class="wring-nav">` +
-          `<a href="${RING_URL}/prev?${q}" rel="prev" title="Previous site" aria-label="Previous site">${ARROW_LEFT}</a>` +
+          `<a href="${RING_URL}/prev?${q}" class="wring-prev" rel="prev" title="Previous site" aria-label="Previous site">${ARROW_LEFT}</a>` +
           `<span class="wring-name"><span class="wring-title">${esc(name)}</span><span>webring<span class="wring-faces" aria-hidden="true"><span>${face}</span><span>🏭</span></span></span></span>` +
-          `<a href="${RING_URL}/next?${q}" rel="next" title="Next site" aria-label="Next site">${ARROW_RIGHT}</a>` +
+          `<a href="${RING_URL}/next?${q}" class="wring-next" rel="next" title="Next site" aria-label="Next site">${ARROW_RIGHT}</a>` +
         `</span>` +
         `<button type="button" class="wring-mode">${factory === 'bad' ? 'Light' : 'Dark'} mode</button>`;
       el.querySelector('.wring-mode').addEventListener('click', () => render(factory === 'bad' ? 'good' : 'bad'));
