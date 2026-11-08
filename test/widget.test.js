@@ -10,13 +10,24 @@ const SOURCE = readFileSync(new URL('../public/widget.js', import.meta.url), 'ut
 async function renderWidget(ring, { loads = 1 } = {}) {
   const appended = [];
   let fetches = 0;
-  const button = { listeners: [], focused: 0, addEventListener(_, fn) { this.listeners.push(fn); }, focus() { this.focused++; } };
+  // Each render builds a new button, as innerHTML does in a browser.
+  const buttons = [];
+  let builtFor = null;
+  const makeButton = () => ({
+    listeners: [], focused: 0, focusVisible: false,
+    addEventListener(_, fn) { this.listeners.push(fn); },
+    focus() { this.focused++; },
+    matches(sel) { return sel === ':focus-visible' && this.focusVisible; },
+  });
   const bar = {
     id: 'webring-widget',
     innerHTML: '',
     classList: { toggle() {} },
     style: { setProperty() {} },
-    querySelector: () => button,
+    querySelector() {
+      if (builtFor !== this.innerHTML) { buttons.push(makeButton()); builtFor = this.innerHTML; }
+      return buttons.at(-1);
+    },
   };
   const document = {
     currentScript: { src: 'https://ring.example/widget.js' },
@@ -26,12 +37,11 @@ async function renderWidget(ring, { loads = 1 } = {}) {
     querySelector: () => null,
     createElement: (tag) => ({ tag }),
   };
-  document.activeElement = null;
   const window = { location: { origin: 'https://member.example' } };
   const fetch = async () => { fetches++; return { json: async () => ring }; };
   for (let i = 0; i < loads; i++) runInNewContext(SOURCE, { document, window, fetch, URL, encodeURIComponent });
   await new Promise((r) => setTimeout(r, 0));
-  return { bar, button, document, fetches, appended, styles: appended.filter((n) => n.tag === 'style') };
+  return { bar, buttons, fetches, appended, styles: appended.filter((n) => n.tag === 'style') };
 }
 
 test('the factory name is escaped, never parsed as markup', async () => {
@@ -56,9 +66,9 @@ test('a later run, as after a client-side navigation, renders the bar again', as
 });
 
 test('the mode button switches the arrows to the other factory', async () => {
-  const { bar, button } = await renderWidget({ factory: 'good' });
+  const { bar, buttons } = await renderWidget({ factory: 'good' });
   assert.ok(bar.innerHTML.includes('factory=good'));
-  button.listeners.at(-1)();
+  buttons.at(-1).listeners[0]();
   assert.ok(bar.innerHTML.includes('factory=bad'));
   assert.ok(bar.innerHTML.includes('Light mode'));
 });
@@ -70,8 +80,14 @@ test('the bar loads its font from the ring, never from a font CDN', async () => 
   assert.ok(!/googleapis|gstatic/.test(styles[0].textContent));
 });
 
-test('toggling moves focus to the rebuilt button', async () => {
-  const { button } = await renderWidget({ factory: 'good' });
-  button.listeners.at(-1)();
-  assert.equal(button.focused, 1);
+test('toggling moves keyboard focus to the rebuilt button, and leaves mouse clicks alone', async () => {
+  const { buttons } = await renderWidget({ factory: 'good' });
+  buttons.at(-1).listeners[0]();
+  assert.equal(buttons.at(-1).focused, 0);
+  const kb = buttons.at(-1);
+  kb.focusVisible = true;
+  kb.listeners[0]();
+  assert.notEqual(buttons.at(-1), kb);
+  assert.equal(buttons.at(-1).focused, 1);
+  assert.equal(kb.focused, 0);
 });

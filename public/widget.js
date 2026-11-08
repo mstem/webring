@@ -154,13 +154,12 @@
     // Light mode is the Good Idea Factory, dark mode the Bad Idea Factory. The
     // bar opens in this site's own factory; its one button offers the other
     // mode and switches which ring the arrows walk.
+    // One biffud.com color per page load, kept across mode toggles. A member
+    // site that sets --wring-bad on the bar picks its own color instead.
+    el.style.setProperty('--wring-bad-random', BIF_COLORS[Math.floor(Math.random() * BIF_COLORS.length)]);
+
     function render(factory) {
       el.classList.toggle('wring-bad', factory === 'bad');
-      // A fresh biffud.com color each time the bar draws in bad mode. A member
-      // site that sets --wring-bad on the bar picks its own color instead.
-      if (factory === 'bad') {
-        el.style.setProperty('--wring-bad-random', BIF_COLORS[Math.floor(Math.random() * BIF_COLORS.length)]);
-      }
       const name = ring.factories?.[factory]?.name || ring.name;
       const face = factory === 'bad' ? '😈' : '😇';
       const q = `from=${FROM}&factory=${factory}`;
@@ -171,11 +170,12 @@
           `<a href="${RING_URL}/next?${q}" class="wring-next" title="Next site" aria-label="Next site">${ARROW}</a>` +
         `</span>` +
         `<button type="button" class="wring-mode">${factory === 'bad' ? 'Light' : 'Dark'} mode</button>`;
-      el.querySelector('.wring-mode').addEventListener('click', () => {
+      const mode = el.querySelector('.wring-mode');
+      mode.addEventListener('click', () => {
+        // Only a keyboard user's focus ring shows, so only they need it back.
+        const keyboard = mode.matches(':focus-visible');
         render(factory === 'bad' ? 'good' : 'bad');
-        // render() rebuilt the button; move focus to the new one so nobody
-        // loses their place.
-        el.querySelector('.wring-mode').focus();
+        if (keyboard) el.querySelector('.wring-mode').focus();
       });
     }
 
