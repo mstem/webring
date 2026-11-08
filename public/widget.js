@@ -168,7 +168,7 @@
 
     function render(factory) {
       el.classList.toggle('wring-bad', factory === 'bad');
-      const name = ring.factories?.[factory]?.name || ring.name;
+      const name = ring.factories?.[factory]?.name || ring.name || '';
       const face = factory === 'bad' ? '😈' : '😇';
       const q = `from=${FROM}&factory=${factory}`;
       el.innerHTML =
@@ -181,8 +181,8 @@
       const mode = el.querySelector('.wring-mode');
       mode.addEventListener('click', () => {
         // Only a keyboard user's focus ring shows, so only they need it back.
-        // Browsers without :focus-visible throw here; there, a focused button
-        // means a keyboard press, since those browsers don't focus on click.
+        // Browsers without :focus-visible throw here; there, any focused
+        // button gets focus back, which at worst refocuses after a click.
         let keyboard = document.activeElement === mode;
         try { keyboard = mode.matches(':focus-visible'); } catch (e) {}
         render(factory === 'bad' ? 'good' : 'bad');

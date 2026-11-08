@@ -26,7 +26,7 @@ async function renderWidget(ring, { loads = 1, oldBrowser = false } = {}) {
     id: 'webring-widget',
     innerHTML: '',
     classList: { toggle() {} },
-    style: { props: {}, setProperty(k, v) { this.props[k] = v; }, getPropertyValue(k) { return this.props[k] || ''; } },
+    style: { props: {}, sets: 0, setProperty(k, v) { this.sets++; this.props[k] = v; }, getPropertyValue(k) { return this.props[k] || ''; } },
     querySelector(sel) {
       if (sel !== '.wring-mode') return null;
       if (builtFor !== this.innerHTML) { buttons.push(makeButton()); builtFor = this.innerHTML; }
@@ -45,7 +45,7 @@ async function renderWidget(ring, { loads = 1, oldBrowser = false } = {}) {
   const fetch = async () => { fetches++; return { json: async () => ring }; };
   for (let i = 0; i < loads; i++) runInNewContext(SOURCE, { document, window, fetch, URL, encodeURIComponent });
   await new Promise((r) => setTimeout(r, 0));
-  return { bar, buttons, document, fetches, appended, styles: appended.filter((n) => n.tag === 'style') };
+  return { bar, buttons, document, setColors: () => bar.style.sets, fetches, appended, styles: appended.filter((n) => n.tag === 'style') };
 }
 
 test('the factory name is escaped, never parsed as markup', async () => {
@@ -103,6 +103,13 @@ test('the toggle still works where :focus-visible is unsupported', async () => {
 });
 
 test('a later run keeps the bar color the first run picked', async () => {
-  const { bar } = await renderWidget({ factory: 'bad' }, { loads: 2 });
+  const seen = new Set();
+  for (let i = 0; i < 20; i++) {
+    const { bar } = await renderWidget({ factory: 'bad' }, { loads: 1 });
+    seen.add(bar.style.props['--wring-bad-random']);
+  }
+  assert.ok(seen.size > 1, 'first runs pick different colors');
+  const { bar, setColors } = await renderWidget({ factory: 'bad' }, { loads: 3 });
   assert.match(bar.style.props['--wring-bad-random'], /^#[0-9a-f]{6}$/);
+  assert.equal(setColors(), 1);
 });
