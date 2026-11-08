@@ -14,7 +14,7 @@
   // Dressed like biffud.com, the Bad Idea Factory's own site: Overpass in heavy
   // tracked capitals, square outlined buttons and, in dark mode, a saturated
   // background drawn at random from biffud.com's
-  // palette. Only its colors that keep white text above 4.5:1, with margin, are here.
+  // palette. The list keeps only its colors that hold white text above 4.5:1, with margin.
   const BIF_COLORS = [
     '#940700', '#941400', '#942a00', '#944900', '#003994',
     '#110094', '#520094', '#8a0094', '#94006e', '#940049',
@@ -24,14 +24,15 @@
   // sites need nothing extra. The left arrow is the same icon flipped in CSS.
   const ARROW = `<svg viewBox="0 0 1024 1024" width="1em" height="1em" aria-hidden="true" focusable="false"><path fill="currentColor" d="M621.254 877.254l320-320c24.994-24.992 24.994-65.516 0-90.51l-320-320c-24.994-24.992-65.516-24.992-90.51 0-24.994 24.994-24.994 65.516 0 90.51l210.746 210.746h-613.49c-35.346 0-64 28.654-64 64s28.654 64 64 64h613.49l-210.746 210.746c-12.496 12.496-18.744 28.876-18.744 45.254s6.248 32.758 18.744 45.254c24.994 24.994 65.516 24.994 90.51 0z"/></svg>`;
 
-  // Overpass is served by the ring itself (SIL OFL, see fonts/OFL.txt) under
-  // its own family name, so it never touches the member site's fonts and no
-  // visitor data goes to a font CDN.
+  // The ring serves Overpass itself (SIL OFL, see fonts/OFL.txt) under its own
+  // family name, so the bar never touches the member site's fonts and sends no
+  // visitor data to a font CDN. Bump ?v= whenever the font file changes.
   const CSS = `
     @font-face {
       font-family: 'webring-overpass';
-      src: url('${RING_URL}/fonts/overpass-latin.woff2') format('woff2');
+      src: url('${RING_URL}/fonts/overpass-latin.woff2?v=1') format('woff2');
       font-weight: 400 800;
+      unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
       font-display: swap;
     }
     #webring-widget {
@@ -56,11 +57,11 @@
       align-items: center;
       gap: 0.9rem;
     }
-    /* Padding gives each arrow a 24px tap target around its 12px icon. */
+    /* Padding gives each arrow a tap target twice the size of its icon. */
     #webring-widget a {
       display: inline-block;
-      padding: 0.375rem;
-      margin: -0.375rem;
+      padding: 0.5em;
+      margin: -0.5em;
       color: inherit;
       text-decoration: none;
     }
@@ -75,7 +76,8 @@
       outline: 2px solid var(--wring-fg);
       outline-offset: 2px;
     }
-    #webring-widget a svg { display: block; }
+    #webring-widget a svg { display: block; width: 1em; height: 1em; }
+    #webring-widget a svg path { fill: currentColor; }
     #webring-widget .wring-prev svg { transform: scaleX(-1); }
     #webring-widget .wring-name {
       display: inline-flex;
@@ -114,7 +116,7 @@
     }
     @media (hover: hover) {
       #webring-widget .wring-mode:hover { background: var(--wring-ink); color: #fff; }
-      #webring-widget:where(.wring-bad) .wring-mode:hover { background: #fff; color: var(--wring-bad); }
+      #webring-widget:where(.wring-bad) .wring-mode:hover { background: #fff; color: var(--wring-bad, var(--wring-bad-random)); }
     }
     @media (max-width: 480px) {
       #webring-widget { grid-template-columns: 1fr; justify-items: center; }
@@ -124,7 +126,7 @@
        so a member site that restyles the bar still wins. */
     #webring-widget:where(.wring-bad) {
       --wring-fg: #fff;
-      background: var(--wring-bad);
+      background: var(--wring-bad, var(--wring-bad-random));
       border-top-color: #fff;
       color: #fff;
     }
@@ -154,9 +156,10 @@
     // mode and switches which ring the arrows walk.
     function render(factory) {
       el.classList.toggle('wring-bad', factory === 'bad');
-      // A fresh biffud.com color each time the bar draws in bad mode.
+      // A fresh biffud.com color each time the bar draws in bad mode. A member
+      // site that sets --wring-bad on the bar picks its own color instead.
       if (factory === 'bad') {
-        el.style.setProperty('--wring-bad', BIF_COLORS[Math.floor(Math.random() * BIF_COLORS.length)]);
+        el.style.setProperty('--wring-bad-random', BIF_COLORS[Math.floor(Math.random() * BIF_COLORS.length)]);
       }
       const name = ring.factories?.[factory]?.name || ring.name;
       const face = factory === 'bad' ? '😈' : '😇';
@@ -168,12 +171,11 @@
           `<a href="${RING_URL}/next?${q}" class="wring-next" title="Next site" aria-label="Next site">${ARROW}</a>` +
         `</span>` +
         `<button type="button" class="wring-mode">${factory === 'bad' ? 'Light' : 'Dark'} mode</button>`;
-      const mode = el.querySelector('.wring-mode');
-      mode.addEventListener('click', () => {
-        const hadFocus = document.activeElement === mode;
+      el.querySelector('.wring-mode').addEventListener('click', () => {
         render(factory === 'bad' ? 'good' : 'bad');
-        // The button was rebuilt; a keyboard user keeps focus on it.
-        if (hadFocus) el.querySelector('.wring-mode').focus();
+        // render() rebuilt the button; move focus to the new one so nobody
+        // loses their place.
+        el.querySelector('.wring-mode').focus();
       });
     }
 

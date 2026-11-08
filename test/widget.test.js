@@ -66,15 +66,12 @@ test('the mode button switches the arrows to the other factory', async () => {
 test('the bar loads its font from the ring, never from a font CDN', async () => {
   const { appended, styles } = await renderWidget({ factory: 'good' });
   assert.equal(appended.length, 1);
-  assert.ok(styles[0].textContent.includes('https://ring.example/fonts/overpass-latin.woff2'));
+  assert.ok(styles[0].textContent.includes('https://ring.example/fonts/overpass-latin.woff2?v=1'));
   assert.ok(!/googleapis|gstatic/.test(styles[0].textContent));
 });
 
-test('toggling keeps focus on the button only for a keyboard user', async () => {
-  const { button, document } = await renderWidget({ factory: 'good' });
-  button.listeners.at(-1)();
-  assert.equal(button.focused, 0);
-  document.activeElement = button;
+test('toggling moves focus to the rebuilt button', async () => {
+  const { button } = await renderWidget({ factory: 'good' });
   button.listeners.at(-1)();
   assert.equal(button.focused, 1);
 });

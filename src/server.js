@@ -21,7 +21,7 @@ app.use((req, res, next) => {
   next();
 });
 
-// Font files never change under the same name, so browsers can keep them.
+// The widget asks for fonts with a ?v= version, so browsers can keep each one.
 app.use('/fonts', express.static(join(ROOT, 'public', 'fonts'), { maxAge: '365d', immutable: true }));
 app.use(express.static(join(ROOT, 'public')));
 
