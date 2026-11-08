@@ -155,21 +155,25 @@
     function render(factory) {
       el.classList.toggle('wring-bad', factory === 'bad');
       // A fresh biffud.com color each time the bar draws in bad mode.
-      el.style.setProperty('--wring-bad', BIF_COLORS[Math.floor(Math.random() * BIF_COLORS.length)]);
+      if (factory === 'bad') {
+        el.style.setProperty('--wring-bad', BIF_COLORS[Math.floor(Math.random() * BIF_COLORS.length)]);
+      }
       const name = ring.factories?.[factory]?.name || ring.name;
       const face = factory === 'bad' ? '😈' : '😇';
       const q = `from=${FROM}&factory=${factory}`;
       el.innerHTML =
         `<span class="wring-nav">` +
-          `<a href="${RING_URL}/prev?${q}" class="wring-prev" title="Previous site">${ARROW}</a>` +
+          `<a href="${RING_URL}/prev?${q}" class="wring-prev" title="Previous site" aria-label="Previous site">${ARROW}</a>` +
           `<span class="wring-name"><span class="wring-title">${esc(name)}</span><span>webring<span class="wring-faces" aria-hidden="true"><span>${face}</span><span>🏭</span></span></span></span>` +
-          `<a href="${RING_URL}/next?${q}" class="wring-next" title="Next site">${ARROW}</a>` +
+          `<a href="${RING_URL}/next?${q}" class="wring-next" title="Next site" aria-label="Next site">${ARROW}</a>` +
         `</span>` +
         `<button type="button" class="wring-mode">${factory === 'bad' ? 'Light' : 'Dark'} mode</button>`;
-      el.querySelector('.wring-mode').addEventListener('click', () => {
+      const mode = el.querySelector('.wring-mode');
+      mode.addEventListener('click', () => {
+        const hadFocus = document.activeElement === mode;
         render(factory === 'bad' ? 'good' : 'bad');
-        // The button was rebuilt; keep keyboard focus on it.
-        el.querySelector('.wring-mode').focus();
+        // The button was rebuilt; a keyboard user keeps focus on it.
+        if (hadFocus) el.querySelector('.wring-mode').focus();
       });
     }
 

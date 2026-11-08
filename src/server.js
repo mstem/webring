@@ -21,6 +21,8 @@ app.use((req, res, next) => {
   next();
 });
 
+// Font files never change under the same name, so browsers can keep them.
+app.use('/fonts', express.static(join(ROOT, 'public', 'fonts'), { maxAge: '365d', immutable: true }));
 app.use(express.static(join(ROOT, 'public')));
 
 // --- Data helpers ---

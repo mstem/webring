@@ -10,7 +10,7 @@ const SOURCE = readFileSync(new URL('../public/widget.js', import.meta.url), 'ut
 async function renderWidget(ring, { loads = 1 } = {}) {
   const appended = [];
   let fetches = 0;
-  const button = { listeners: [], addEventListener(_, fn) { this.listeners.push(fn); }, focus() {} };
+  const button = { listeners: [], focused: 0, addEventListener(_, fn) { this.listeners.push(fn); }, focus() { this.focused++; } };
   const bar = {
     id: 'webring-widget',
     innerHTML: '',
@@ -26,11 +26,12 @@ async function renderWidget(ring, { loads = 1 } = {}) {
     querySelector: () => null,
     createElement: (tag) => ({ tag }),
   };
+  document.activeElement = null;
   const window = { location: { origin: 'https://member.example' } };
   const fetch = async () => { fetches++; return { json: async () => ring }; };
   for (let i = 0; i < loads; i++) runInNewContext(SOURCE, { document, window, fetch, URL, encodeURIComponent });
   await new Promise((r) => setTimeout(r, 0));
-  return { bar, button, fetches, appended, styles: appended.filter((n) => n.tag === 'style') };
+  return { bar, button, document, fetches, appended, styles: appended.filter((n) => n.tag === 'style') };
 }
 
 test('the factory name is escaped, never parsed as markup', async () => {
@@ -67,4 +68,13 @@ test('the bar loads its font from the ring, never from a font CDN', async () => 
   assert.equal(appended.length, 1);
   assert.ok(styles[0].textContent.includes('https://ring.example/fonts/overpass-latin.woff2'));
   assert.ok(!/googleapis|gstatic/.test(styles[0].textContent));
+});
+
+test('toggling keeps focus on the button only for a keyboard user', async () => {
+  const { button, document } = await renderWidget({ factory: 'good' });
+  button.listeners.at(-1)();
+  assert.equal(button.focused, 0);
+  document.activeElement = button;
+  button.listeners.at(-1)();
+  assert.equal(button.focused, 1);
 });
