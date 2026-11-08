@@ -33,7 +33,7 @@
       src: url('${RING_URL}/fonts/overpass-latin.woff2?v=1') format('woff2');
       font-weight: 400 800;
       unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
-      font-display: swap;
+      font-display: fallback;
     }
     #webring-widget {
       --wring-ink: #1d1c1a;
@@ -69,10 +69,16 @@
        on the bad palette. */
     @media (prefers-reduced-motion: no-preference) {
       #webring-widget a { transition: transform 0.15s; }
-      #webring-widget .wring-prev:hover, #webring-widget .wring-prev:focus-visible { transform: translateX(-3px); }
-      #webring-widget .wring-next:hover, #webring-widget .wring-next:focus-visible { transform: translateX(3px); }
+      #webring-widget .wring-prev:hover { transform: translateX(-3px); }
+      #webring-widget .wring-next:hover { transform: translateX(3px); }
+      #webring-widget .wring-prev:focus-visible { transform: translateX(-3px); }
+      #webring-widget .wring-next:focus-visible { transform: translateX(3px); }
     }
-    #webring-widget a:focus-visible, #webring-widget .wring-mode:focus-visible {
+    #webring-widget a:focus-visible {
+      outline: 2px solid var(--wring-fg);
+      outline-offset: 2px;
+    }
+    #webring-widget .wring-mode:focus-visible {
       outline: 2px solid var(--wring-fg);
       outline-offset: 2px;
     }
@@ -156,7 +162,9 @@
     // mode and switches which ring the arrows walk.
     // One biffud.com color per page load, kept across mode toggles. A member
     // site that sets --wring-bad on the bar picks its own color instead.
-    el.style.setProperty('--wring-bad-random', BIF_COLORS[Math.floor(Math.random() * BIF_COLORS.length)]);
+    if (!el.style.getPropertyValue('--wring-bad-random')) {
+      el.style.setProperty('--wring-bad-random', BIF_COLORS[Math.floor(Math.random() * BIF_COLORS.length)]);
+    }
 
     function render(factory) {
       el.classList.toggle('wring-bad', factory === 'bad');
@@ -173,7 +181,10 @@
       const mode = el.querySelector('.wring-mode');
       mode.addEventListener('click', () => {
         // Only a keyboard user's focus ring shows, so only they need it back.
-        const keyboard = mode.matches(':focus-visible');
+        // Browsers without :focus-visible throw here; there, a focused button
+        // means a keyboard press, since those browsers don't focus on click.
+        let keyboard = document.activeElement === mode;
+        try { keyboard = mode.matches(':focus-visible'); } catch (e) {}
         render(factory === 'bad' ? 'good' : 'bad');
         if (keyboard) el.querySelector('.wring-mode').focus();
       });

@@ -7,7 +7,7 @@ const SOURCE = readFileSync(new URL('../public/widget.js', import.meta.url), 'ut
 
 // Runs widget.js against a minimal fake DOM and returns the bar element once
 // the ring has loaded.
-async function renderWidget(ring, { loads = 1 } = {}) {
+async function renderWidget(ring, { loads = 1, oldBrowser = false } = {}) {
   const appended = [];
   let fetches = 0;
   // Each render builds a new button, as innerHTML does in a browser.
@@ -17,14 +17,18 @@ async function renderWidget(ring, { loads = 1 } = {}) {
     listeners: [], focused: 0, focusVisible: false,
     addEventListener(_, fn) { this.listeners.push(fn); },
     focus() { this.focused++; },
-    matches(sel) { return sel === ':focus-visible' && this.focusVisible; },
+    matches(sel) {
+      if (oldBrowser) throw new SyntaxError(`unknown selector ${sel}`);
+      return sel === ':focus-visible' && this.focusVisible;
+    },
   });
   const bar = {
     id: 'webring-widget',
     innerHTML: '',
     classList: { toggle() {} },
-    style: { setProperty() {} },
-    querySelector() {
+    style: { props: {}, setProperty(k, v) { this.props[k] = v; }, getPropertyValue(k) { return this.props[k] || ''; } },
+    querySelector(sel) {
+      if (sel !== '.wring-mode') return null;
       if (builtFor !== this.innerHTML) { buttons.push(makeButton()); builtFor = this.innerHTML; }
       return buttons.at(-1);
     },
@@ -41,7 +45,7 @@ async function renderWidget(ring, { loads = 1 } = {}) {
   const fetch = async () => { fetches++; return { json: async () => ring }; };
   for (let i = 0; i < loads; i++) runInNewContext(SOURCE, { document, window, fetch, URL, encodeURIComponent });
   await new Promise((r) => setTimeout(r, 0));
-  return { bar, buttons, fetches, appended, styles: appended.filter((n) => n.tag === 'style') };
+  return { bar, buttons, document, fetches, appended, styles: appended.filter((n) => n.tag === 'style') };
 }
 
 test('the factory name is escaped, never parsed as markup', async () => {
@@ -90,4 +94,15 @@ test('toggling moves keyboard focus to the rebuilt button, and leaves mouse clic
   assert.notEqual(buttons.at(-1), kb);
   assert.equal(buttons.at(-1).focused, 1);
   assert.equal(kb.focused, 0);
+});
+
+test('the toggle still works where :focus-visible is unsupported', async () => {
+  const { bar, buttons } = await renderWidget({ factory: 'good' }, { oldBrowser: true });
+  buttons.at(-1).listeners[0]();
+  assert.ok(bar.innerHTML.includes('factory=bad'));
+});
+
+test('a later run keeps the bar color the first run picked', async () => {
+  const { bar } = await renderWidget({ factory: 'bad' }, { loads: 2 });
+  assert.match(bar.style.props['--wring-bad-random'], /^#[0-9a-f]{6}$/);
 });
