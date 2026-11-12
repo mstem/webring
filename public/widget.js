@@ -46,7 +46,9 @@
       grid-template-columns: 1fr auto 1fr;
       align-items: center;
       gap: 0.7rem;
-      padding: 0.9rem 1rem;
+      /* biffud.com's footer padding: a deep bottom that grows from 50px on a
+         phone to 100px on a wide screen. */
+      padding: 0.9rem 1rem clamp(50px, calc(50px + 50 * (100vw - 320px) / 1120), 100px);
       background: #fff;
       border-top: 2px solid var(--wring-ink);
       color: var(--wring-ink);
