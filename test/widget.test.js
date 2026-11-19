@@ -19,7 +19,7 @@ function makeNode() {
 
 // Runs widget.js against a minimal fake DOM and returns the bar once the ring
 // has loaded.
-async function renderWidget(ring, { loads = 1 } = {}) {
+async function renderWidget(ring, { loads = 1, bodyBox = null, barBox = null } = {}) {
   const appended = [];
   let fetches = 0;
   let nodes = {};
@@ -44,16 +44,20 @@ async function renderWidget(ring, { loads = 1 } = {}) {
     },
     querySelector: (sel) => nodes[sel] || null,
   };
+  const body = { appendChild() {} };
+  if (bodyBox) bar.parentElement = body;
   const document = {
     currentScript: { src: 'https://ring.example/widget.js' },
     head: { appendChild: (n) => appended.push(n) },
-    body: { appendChild() {} },
+    body,
     getElementById: (id) => (id === 'webring-widget' ? bar : appended.find((n) => n.id === id) || null),
     createElement: (tag) => ({ tag }),
   };
   const window = { location: { origin: 'https://member.example' } };
   const fetch = async () => { fetches++; return { json: async () => ring }; };
-  for (let i = 0; i < loads; i++) runInNewContext(SOURCE, { document, window, fetch, URL, encodeURIComponent });
+  const context = { document, window, fetch, URL, encodeURIComponent };
+  if (bodyBox) context.getComputedStyle = (node) => (node === body ? bodyBox : (barBox || {}));
+  for (let i = 0; i < loads; i++) runInNewContext(SOURCE, context);
   await new Promise((r) => setTimeout(r, 0));
   return {
     bar,
@@ -130,4 +134,53 @@ test('a good bar sets no color; a bad bar keeps one color across toggles and run
   bad.node('.wring-mode').click();
   assert.match(bad.bar.style.props['--wring-bad-random'], /^#[0-9a-f]{6}$/);
   assert.equal(bad.bar.style.sets, 1);
+});
+
+test('the bar stretches across a parent that centers its children', async () => {
+  const { styles } = await renderWidget({ factory: 'good' });
+  const rule = styles[0].textContent.match(/#webring-widget \{[^}]*\}/)[0];
+  assert.match(rule, /align-self:\s*stretch/);
+  assert.match(rule, /justify-self:\s*stretch/);
+});
+
+const PADDED_BASE = { display: 'block', overflowX: 'visible', paddingLeft: '16px', paddingRight: '16px', marginLeft: '8px', marginRight: '8px', borderLeftWidth: '0px', borderRightWidth: '0px' };
+
+test('a bar placed straight in a padded body reaches the window edges', async () => {
+  const { bar } = await renderWidget({ factory: 'good' }, {
+    bodyBox: PADDED_BASE,
+  });
+  assert.equal(bar.style.marginLeft, '-24px');
+  assert.equal(bar.style.marginRight, '-24px');
+});
+
+const PADDED = { display: 'block', overflowX: 'visible', paddingLeft: '16px', paddingRight: '16px', marginLeft: '8px', marginRight: '8px', borderLeftWidth: '0px', borderRightWidth: '0px' };
+
+test('a bar in a body that lays its children out side by side stays where the page puts it', async () => {
+  const { bar } = await renderWidget({ factory: 'good' }, { bodyBox: { ...PADDED, display: 'flex', flexDirection: 'row' } });
+  assert.equal(bar.style.marginLeft || '', '');
+});
+
+test('a bar in a grid body stays where the page puts it', async () => {
+  const { bar } = await renderWidget({ factory: 'good' }, { bodyBox: { ...PADDED, display: 'grid' } });
+  assert.equal(bar.style.marginLeft || '', '');
+});
+
+test('a bar in a body that clips its overflow stays inside it', async () => {
+  const { bar } = await renderWidget({ factory: 'good' }, { bodyBox: { ...PADDED, overflowX: 'hidden' } });
+  assert.equal(bar.style.marginLeft || '', '');
+});
+
+test('a bar the site gave its own margins keeps them', async () => {
+  const { bar } = await renderWidget({ factory: 'good' }, { bodyBox: PADDED, barBox: { marginLeft: '120px', marginRight: '120px' } });
+  assert.equal(bar.style.marginLeft || '', '');
+});
+
+test('a body with a negative margin writes valid CSS', async () => {
+  const { bar } = await renderWidget({ factory: 'good' }, { bodyBox: { ...PADDED, marginLeft: '-10px', paddingLeft: '5px' } });
+  assert.equal(bar.style.marginLeft, '5px');
+});
+
+test('a flex column body, like the calculators use, still reaches the edges', async () => {
+  const { bar } = await renderWidget({ factory: 'good' }, { bodyBox: { ...PADDED, display: 'flex', flexDirection: 'column' } });
+  assert.equal(bar.style.marginLeft, '-24px');
 });
