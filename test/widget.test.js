@@ -19,7 +19,7 @@ function makeNode() {
 
 // Runs widget.js against a minimal fake DOM and returns the bar once the ring
 // has loaded.
-async function renderWidget(ring, { loads = 1 } = {}) {
+async function renderWidget(ring, { loads = 1, bodyBox = null } = {}) {
   const appended = [];
   let fetches = 0;
   let nodes = {};
@@ -44,16 +44,20 @@ async function renderWidget(ring, { loads = 1 } = {}) {
     },
     querySelector: (sel) => nodes[sel] || null,
   };
+  const body = { appendChild() {} };
+  if (bodyBox) bar.parentElement = body;
   const document = {
     currentScript: { src: 'https://ring.example/widget.js' },
     head: { appendChild: (n) => appended.push(n) },
-    body: { appendChild() {} },
+    body,
     getElementById: (id) => (id === 'webring-widget' ? bar : appended.find((n) => n.id === id) || null),
     createElement: (tag) => ({ tag }),
   };
   const window = { location: { origin: 'https://member.example' } };
   const fetch = async () => { fetches++; return { json: async () => ring }; };
-  for (let i = 0; i < loads; i++) runInNewContext(SOURCE, { document, window, fetch, URL, encodeURIComponent });
+  const context = { document, window, fetch, URL, encodeURIComponent };
+  if (bodyBox) context.getComputedStyle = (node) => (node === body ? bodyBox : {});
+  for (let i = 0; i < loads; i++) runInNewContext(SOURCE, context);
   await new Promise((r) => setTimeout(r, 0));
   return {
     bar,
@@ -137,4 +141,12 @@ test('the bar stretches across a parent that centers its children', async () => 
   const rule = styles[0].textContent.match(/#webring-widget \{[^}]*\}/)[0];
   assert.match(rule, /align-self:\s*stretch/);
   assert.match(rule, /justify-self:\s*stretch/);
+});
+
+test('a bar placed straight in a padded body reaches the window edges', async () => {
+  const { bar } = await renderWidget({ factory: 'good' }, {
+    bodyBox: { paddingLeft: '16px', paddingRight: '16px', marginLeft: '8px', marginRight: '8px', borderLeftWidth: '0px', borderRightWidth: '0px' },
+  });
+  assert.equal(bar.style.marginLeft, '-24px');
+  assert.equal(bar.style.marginRight, '-24px');
 });

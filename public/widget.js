@@ -163,6 +163,27 @@
       document.body.appendChild(el);
     }
 
+    // A bar sitting straight in <body> pulls itself out past the body's side
+    // padding, border and margin, so it runs edge to edge even on a page that
+    // pads or centers its body. A bar in a container the site chose stays put.
+    // Margins are measured, not set to 100vw, so a scrollbar never adds a
+    // sideways scroll. Re-measured on resize, when a centered body's margins change.
+    function bleed() {
+      const bar = document.getElementById(TARGET_ID);
+      if (!bar || bar.parentElement !== document.body || typeof getComputedStyle !== 'function') return;
+      const cs = getComputedStyle(document.body);
+      const side = (s) => ['padding', 'margin'].reduce((n, k) => n + (parseFloat(cs[k + s]) || 0), 0)
+        + (parseFloat(cs[`border${s}Width`]) || 0);
+      const left = side('Left'), right = side('Right');
+      bar.style.marginLeft = left ? `-${left}px` : '';
+      bar.style.marginRight = right ? `-${right}px` : '';
+    }
+    bleed();
+    if (!window.__wringBleed && typeof window.addEventListener === 'function') {
+      window.__wringBleed = true;
+      window.addEventListener('resize', bleed);
+    }
+
     // Light mode is the Good Idea Factory, dark mode the Bad Idea Factory. The
     // bar opens in this site's own factory; its one button offers the other
     // mode and switches which ring the arrows walk. The markup goes in once and
