@@ -19,7 +19,7 @@ function makeNode() {
 
 // Runs widget.js against a minimal fake DOM and returns the bar once the ring
 // has loaded.
-async function renderWidget(ring, { loads = 1, bodyBox = null } = {}) {
+async function renderWidget(ring, { loads = 1, bodyBox = null, barBox = null } = {}) {
   const appended = [];
   let fetches = 0;
   let nodes = {};
@@ -56,7 +56,7 @@ async function renderWidget(ring, { loads = 1, bodyBox = null } = {}) {
   const window = { location: { origin: 'https://member.example' } };
   const fetch = async () => { fetches++; return { json: async () => ring }; };
   const context = { document, window, fetch, URL, encodeURIComponent };
-  if (bodyBox) context.getComputedStyle = (node) => (node === body ? bodyBox : {});
+  if (bodyBox) context.getComputedStyle = (node) => (node === body ? bodyBox : (barBox || {}));
   for (let i = 0; i < loads; i++) runInNewContext(SOURCE, context);
   await new Promise((r) => setTimeout(r, 0));
   return {
@@ -143,10 +143,44 @@ test('the bar stretches across a parent that centers its children', async () => 
   assert.match(rule, /justify-self:\s*stretch/);
 });
 
+const PADDED_BASE = { display: 'block', overflowX: 'visible', paddingLeft: '16px', paddingRight: '16px', marginLeft: '8px', marginRight: '8px', borderLeftWidth: '0px', borderRightWidth: '0px' };
+
 test('a bar placed straight in a padded body reaches the window edges', async () => {
   const { bar } = await renderWidget({ factory: 'good' }, {
-    bodyBox: { paddingLeft: '16px', paddingRight: '16px', marginLeft: '8px', marginRight: '8px', borderLeftWidth: '0px', borderRightWidth: '0px' },
+    bodyBox: PADDED_BASE,
   });
   assert.equal(bar.style.marginLeft, '-24px');
   assert.equal(bar.style.marginRight, '-24px');
+});
+
+const PADDED = { display: 'block', overflowX: 'visible', paddingLeft: '16px', paddingRight: '16px', marginLeft: '8px', marginRight: '8px', borderLeftWidth: '0px', borderRightWidth: '0px' };
+
+test('a bar in a body that lays its children out side by side stays where the page puts it', async () => {
+  const { bar } = await renderWidget({ factory: 'good' }, { bodyBox: { ...PADDED, display: 'flex', flexDirection: 'row' } });
+  assert.equal(bar.style.marginLeft || '', '');
+});
+
+test('a bar in a grid body stays where the page puts it', async () => {
+  const { bar } = await renderWidget({ factory: 'good' }, { bodyBox: { ...PADDED, display: 'grid' } });
+  assert.equal(bar.style.marginLeft || '', '');
+});
+
+test('a bar in a body that clips its overflow stays inside it', async () => {
+  const { bar } = await renderWidget({ factory: 'good' }, { bodyBox: { ...PADDED, overflowX: 'hidden' } });
+  assert.equal(bar.style.marginLeft || '', '');
+});
+
+test('a bar the site gave its own margins keeps them', async () => {
+  const { bar } = await renderWidget({ factory: 'good' }, { bodyBox: PADDED, barBox: { marginLeft: '120px', marginRight: '120px' } });
+  assert.equal(bar.style.marginLeft || '', '');
+});
+
+test('a body with a negative margin writes valid CSS', async () => {
+  const { bar } = await renderWidget({ factory: 'good' }, { bodyBox: { ...PADDED, marginLeft: '-10px', paddingLeft: '5px' } });
+  assert.equal(bar.style.marginLeft, '5px');
+});
+
+test('a flex column body, like the calculators use, still reaches the edges', async () => {
+  const { bar } = await renderWidget({ factory: 'good' }, { bodyBox: { ...PADDED, display: 'flex', flexDirection: 'column' } });
+  assert.equal(bar.style.marginLeft, '-24px');
 });

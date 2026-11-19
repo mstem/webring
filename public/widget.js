@@ -163,25 +163,43 @@
       document.body.appendChild(el);
     }
 
-    // A bar sitting straight in <body> pulls itself out past the body's side
-    // padding, border and margin, so it runs edge to edge even on a page that
-    // pads or centers its body. A bar in a container the site chose stays put.
-    // Margins are measured, not set to 100vw, so a scrollbar never adds a
-    // sideways scroll. Re-measured on resize, when a centered body's margins change.
+    // A bar sitting straight in <body> reaches past the body's side padding,
+    // border and margin, so it runs edge to edge on a page that pads or centers
+    // its body. It stays where the page put it when the site gave it margins of
+    // its own, when the body lays its children out side by side (row flex or
+    // grid), or when the body clips its overflow. Measured margins never add a
+    // sideways scroll the way 100vw would beside a scrollbar.
     function bleed() {
       const bar = document.getElementById(TARGET_ID);
-      if (!bar || bar.parentElement !== document.body || typeof getComputedStyle !== 'function') return;
-      const cs = getComputedStyle(document.body);
-      const side = (s) => ['padding', 'margin'].reduce((n, k) => n + (parseFloat(cs[k + s]) || 0), 0)
-        + (parseFloat(cs[`border${s}Width`]) || 0);
+      if (!bar || typeof getComputedStyle !== 'function') return;
+      const set = (l, r) => {
+        if (bar.style.marginLeft !== l) bar.style.marginLeft = l;
+        if (bar.style.marginRight !== r) bar.style.marginRight = r;
+      };
+      if (bar.parentElement !== document.body) return set('', '');
+      const px = (v) => parseFloat(v) || 0;
+      const body = getComputedStyle(document.body);
+      const rowFlex = /flex/.test(body.display || '') && !/column/.test(body.flexDirection || '');
+      const clips = /hidden|clip|scroll|auto/.test(body.overflowX || '');
+      if (rowFlex || /grid/.test(body.display || '') || clips) return set('', '');
+      // Read the bar's own margins with ours cleared, to see what the site set.
+      set('', '');
+      const own = getComputedStyle(bar);
+      if (px(own.marginLeft) || px(own.marginRight)) return;
+      const side = (s) => px(body['padding' + s]) + px(body['margin' + s]) + px(body[`border${s}Width`]);
       const left = side('Left'), right = side('Right');
-      bar.style.marginLeft = left ? `-${left}px` : '';
-      bar.style.marginRight = right ? `-${right}px` : '';
+      set(left ? `${-left}px` : '', right ? `${-right}px` : '');
     }
     bleed();
-    if (!window.__wringBleed && typeof window.addEventListener === 'function') {
+    // Measure again when the page finishes loading its styles and whenever the
+    // body changes size; a centered body's margins change with the window.
+    if (!window.__wringBleed) {
       window.__wringBleed = true;
-      window.addEventListener('resize', bleed);
+      if (typeof window.addEventListener === 'function') {
+        window.addEventListener('load', bleed);
+        window.addEventListener('resize', bleed);
+      }
+      if (typeof ResizeObserver === 'function') new ResizeObserver(bleed).observe(document.body);
     }
 
     // Light mode is the Good Idea Factory, dark mode the Bad Idea Factory. The
