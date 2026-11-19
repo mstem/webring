@@ -46,6 +46,10 @@
       grid-template-columns: 1fr auto 1fr;
       align-items: center;
       gap: 0.7rem;
+      /* A member page that centers its children (a flex or grid body) would
+         otherwise shrink the bar to the width of its text. */
+      align-self: stretch;
+      justify-self: stretch;
       /* biffud.com's footer padding: a deep bottom that grows from 50px on a
          phone to 100px on a wide screen. */
       padding: 0.9rem 1rem clamp(50px, calc(50px + 50 * (100vw - 320px) / 1120), 100px);

@@ -131,3 +131,10 @@ test('a good bar sets no color; a bad bar keeps one color across toggles and run
   assert.match(bad.bar.style.props['--wring-bad-random'], /^#[0-9a-f]{6}$/);
   assert.equal(bad.bar.style.sets, 1);
 });
+
+test('the bar stretches across a parent that centers its children', async () => {
+  const { styles } = await renderWidget({ factory: 'good' });
+  const rule = styles[0].textContent.match(/#webring-widget \{[^}]*\}/)[0];
+  assert.match(rule, /align-self:\s*stretch/);
+  assert.match(rule, /justify-self:\s*stretch/);
+});
